@@ -5,7 +5,7 @@ from ..basic_game import BasicGame
 from ..basic_features.utils import is_directory
 
 class FF12ModDataChecker(BasicModDataChecker):
-    def __init__(self, patterns: GlobPatterns = GlobPatterns()):
+    def __init__(self):
         super().__init__(
             GlobPatterns(
                 unfold=['*'],
@@ -18,7 +18,7 @@ class FF12ModDataChecker(BasicModDataChecker):
                       "prefetchdata":   "mods/deploy/ff12data/",
                       "ps2data":        "mods/deploy/ff12data/",
                       },
-            ).merge(patterns)
+            )
         )
 
     def dataLooksValid(
@@ -88,8 +88,8 @@ class FF12TZAGame(BasicGame):
 
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
-        self._featureMap[mobase.ModDataChecker] = FF12ModDataChecker()
+        self._register_feature(FF12ModDataChecker())
         return True
 
     def version(self):
-        return mobase.VersionInfo(0, 1, 0, mobase.ReleaseType.BETA)
+        return mobase.VersionInfo(0, 2, 0, mobase.ReleaseType.BETA)
