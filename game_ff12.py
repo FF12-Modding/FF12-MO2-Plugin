@@ -1,5 +1,12 @@
 import mobase
 
+from enum import StrEnum
+
+from PyQt6.QtCore import (
+    QDir,
+    QStandardPaths,
+)
+
 from ..basic_features import (
     BasicModDataChecker,
     GlobPatterns,
@@ -82,6 +89,9 @@ class FF12ModDataChecker(BasicModDataChecker):
 
         return filetree
 
+class SettingName(StrEnum):
+    STEAM_ID_64 = "steamId64"
+
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
     Author = "ffgriever & Xeavin"
@@ -91,6 +101,7 @@ class FF12TZAGame(BasicGame):
     GameBinary = "x64/FFXII_TZA.exe"
     GameDataPath = "%GAME_PATH%"
     GameSteamId = 595520
+    GameSavesDirectory = "%GAME_DOCUMENTS%"
 
     def __init__(self):
         super().__init__()
@@ -103,8 +114,33 @@ class FF12TZAGame(BasicGame):
     def version(self):
         return mobase.VersionInfo(0, 2, 0, mobase.ReleaseType.BETA)
 
+    def settings(self) -> list[mobase.PluginSetting]:
+        return [
+            mobase.PluginSetting(
+                SettingName.STEAM_ID_64,
+                (
+                    "Unique 64-bit Steam user identifier used to locate saves and configuration files. "
+                    "Leave empty when launching the game without Steam."
+                ),
+                default_value = "",
+            ),
+        ]
+
     def _get_setting(self, key: str) -> mobase.MoVariant:
         return self._organizer.pluginSetting(self.name(), key)
 
     def _set_setting(self, key: str, value: mobase.MoVariant):
         self._organizer.setPluginSetting(self.name(), key, value)
+
+    def documentsDirectory(self) -> QDir:
+        docs_path = QDir(
+            QDir(
+                QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+            ).filePath("My Games/FINAL FANTASY XII THE ZODIAC AGE")
+        )
+
+        steam_id = self._get_setting(SettingName.STEAM_ID_64)
+        if steam_id:
+            docs_path = QDir(docs_path.absoluteFilePath(steam_id))
+
+        return docs_path
