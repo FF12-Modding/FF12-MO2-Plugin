@@ -1,8 +1,12 @@
 import mobase
 
-from ..basic_features import BasicModDataChecker, GlobPatterns
-from ..basic_game import BasicGame
+from ..basic_features import (
+    BasicModDataChecker,
+    GlobPatterns,
+)
 from ..basic_features.utils import is_directory
+
+from ..basic_game import BasicGame
 
 class FF12ModDataChecker(BasicModDataChecker):
     def __init__(self):
@@ -53,6 +57,7 @@ class FF12ModDataChecker(BasicModDataChecker):
 
     def fix(self, filetree: mobase.IFileTree) -> mobase.IFileTree:
         rp = self._regex_patterns
+
         for entry in list(filetree):
             name = entry.name().casefold()
 
