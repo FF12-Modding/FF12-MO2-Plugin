@@ -9,7 +9,10 @@ from ..basic_features.utils import is_directory
 from ..basic_game import BasicGame
 
 class FF12ModDataChecker(BasicModDataChecker):
-    def __init__(self):
+    def __init__(self, organizer: mobase.IOrganizer, plugin_name: str):
+        self._organizer = organizer
+        self._plugin_name = plugin_name
+
         super().__init__(
             GlobPatterns(
                 unfold=['*'],
@@ -94,8 +97,14 @@ class FF12TZAGame(BasicGame):
 
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
-        self._register_feature(FF12ModDataChecker())
+        self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
         return True
 
     def version(self):
         return mobase.VersionInfo(0, 2, 0, mobase.ReleaseType.BETA)
+
+    def _get_setting(self, key: str) -> mobase.MoVariant:
+        return self._organizer.pluginSetting(self.name(), key)
+
+    def _set_setting(self, key: str, value: mobase.MoVariant):
+        self._organizer.setPluginSetting(self.name(), key, value)
