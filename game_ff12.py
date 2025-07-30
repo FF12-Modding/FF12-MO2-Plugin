@@ -84,7 +84,7 @@ class FF12ModDataChecker(BasicModDataChecker):
 
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
-    Author = "ffgriever"
+    Author = "ffgriever & Xeavin"
     GameName = "Final Fantasy XII The Zodiac Age"
     GameShortName = "finalfantasy12"
     GameNexusName = "finalfantasy12"
