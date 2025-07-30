@@ -1,9 +1,11 @@
 import mobase
 
+from collections.abc import Mapping
 from enum import StrEnum
 from pathlib import Path
 
 from PyQt6.QtCore import (
+    QDateTime,
     QDir,
     QStandardPaths,
 )
@@ -17,6 +19,8 @@ from ..basic_features.utils import is_directory
 
 from ..basic_features.basic_save_game_info import (
     BasicGameSaveGame,
+    BasicGameSaveGameInfo,
+    format_date,
 )
 
 from ..basic_game import BasicGame
@@ -98,6 +102,10 @@ class FF12ModDataChecker(BasicModDataChecker):
 class FF12SaveGame(BasicGameSaveGame):
     def __init__(self, filepath: Path):
         super().__init__(filepath)
+        f_stat = self._filepath.stat()
+        self._size = f_stat.st_size
+        self._created = f_stat.st_birthtime
+        self._modified = f_stat.st_mtime
 
     def getName(self) -> str:
         return f"Slot {self.getSlot()}"
@@ -107,6 +115,24 @@ class FF12SaveGame(BasicGameSaveGame):
 
     def getSlot(self) -> str:
         return int(self._filepath.stem[6:9])
+
+    def getSize(self) -> int:
+        return self._size
+
+    def getBirthTime(self) -> QDateTime:
+        return QDateTime.fromSecsSinceEpoch(int(self._created))
+
+    def getCreationTime(self) -> QDateTime:
+        return QDateTime.fromSecsSinceEpoch(int(self._modified))
+
+def getSaveMetadata(savepath: Path, save: mobase.ISaveGame) -> Mapping[str, str]:
+    assert isinstance(save, FF12SaveGame)
+    return {
+        "Slot": save.getSlot(),
+        "Size": f"{save.getSize() / 1024:.2f} KB",
+        "Created At": format_date(save.getBirthTime()),
+        "Last Saved": format_date(save.getCreationTime())
+    }
 
 class SettingName(StrEnum):
     STEAM_ID_64 = "steamId64"
@@ -129,6 +155,7 @@ class FF12TZAGame(BasicGame):
         super().init(organizer)
         self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
+        self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
         return True
 
     def version(self):
