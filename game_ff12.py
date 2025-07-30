@@ -144,3 +144,9 @@ class FF12TZAGame(BasicGame):
             docs_path = QDir(docs_path.absoluteFilePath(steam_id))
 
         return docs_path
+
+    def iniFiles(self):
+        return [
+            "GameSetting.ini",
+            "keymap.ini"
+        ]
