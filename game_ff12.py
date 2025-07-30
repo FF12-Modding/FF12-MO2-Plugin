@@ -21,6 +21,7 @@ class FF12ModDataChecker(BasicModDataChecker):
                       "jsondata":       "mods/deploy/ff12data/",
                       "prefetchdata":   "mods/deploy/ff12data/",
                       "ps2data":        "mods/deploy/ff12data/",
+                      "ff12data":       "mods/deploy/",
                       },
             )
         )
