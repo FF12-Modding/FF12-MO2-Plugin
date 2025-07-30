@@ -1,6 +1,7 @@
 import mobase
 
 from enum import StrEnum
+from pathlib import Path
 
 from PyQt6.QtCore import (
     QDir,
@@ -8,10 +9,15 @@ from PyQt6.QtCore import (
 )
 
 from ..basic_features import (
+    BasicLocalSavegames,
     BasicModDataChecker,
     GlobPatterns,
 )
 from ..basic_features.utils import is_directory
+
+from ..basic_features.basic_save_game_info import (
+    BasicGameSaveGame,
+)
 
 from ..basic_game import BasicGame
 
@@ -89,6 +95,19 @@ class FF12ModDataChecker(BasicModDataChecker):
 
         return filetree
 
+class FF12SaveGame(BasicGameSaveGame):
+    def __init__(self, filepath: Path):
+        super().__init__(filepath)
+
+    def getName(self) -> str:
+        return f"Slot {self.getSlot()}"
+
+    def getSaveGroupIdentifier(self) -> str:
+        return "Default"
+
+    def getSlot(self) -> str:
+        return int(self._filepath.stem[6:9])
+
 class SettingName(StrEnum):
     STEAM_ID_64 = "steamId64"
 
@@ -109,6 +128,7 @@ class FF12TZAGame(BasicGame):
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
         self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
+        self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         return True
 
     def version(self):
@@ -149,4 +169,11 @@ class FF12TZAGame(BasicGame):
         return [
             "GameSetting.ini",
             "keymap.ini"
+        ]
+
+    def listSaves(self, folder: QDir) -> list[mobase.ISaveGame]:
+        return [
+            FF12SaveGame(path)
+            for path in Path(folder.absolutePath()).glob("FFXII_???")
+            if path.is_file() and path.name[6:9].isdigit()
         ]
