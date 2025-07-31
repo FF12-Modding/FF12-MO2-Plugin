@@ -8,6 +8,7 @@ from PyQt6.QtCore import (
     QDateTime,
     QDir,
     QStandardPaths,
+    qInfo,
 )
 
 from ..basic_features import (
@@ -24,6 +25,9 @@ from ..basic_features.basic_save_game_info import (
 )
 
 from ..basic_game import BasicGame
+
+from ..steam_utils import find_steam_path
+import vdf
 
 class FF12ModDataChecker(BasicModDataChecker):
     def __init__(self, organizer: mobase.IOrganizer, plugin_name: str):
@@ -135,6 +139,7 @@ def getSaveMetadata(savepath: Path, save: mobase.ISaveGame) -> Mapping[str, str]
     }
 
 class SettingName(StrEnum):
+    AUTO_STEAM_ID = "autoSteamId"
     STEAM_ID_64 = "steamId64"
 
 class FF12TZAGame(BasicGame):
@@ -156,6 +161,11 @@ class FF12TZAGame(BasicGame):
         self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
+
+        auto_steam_id = self._get_setting(SettingName.AUTO_STEAM_ID)
+        if auto_steam_id is True:
+            self._set_last_logged_steam_id()
+
         return True
 
     def version(self):
@@ -163,6 +173,13 @@ class FF12TZAGame(BasicGame):
 
     def settings(self) -> list[mobase.PluginSetting]:
         return [
+            mobase.PluginSetting(
+                SettingName.AUTO_STEAM_ID,
+                (
+                    f"If true, automatically set '{SettingName.STEAM_ID_64}' to last logged Steam user."
+                ),
+                default_value = True,
+            ),
             mobase.PluginSetting(
                 SettingName.STEAM_ID_64,
                 (
@@ -204,3 +221,38 @@ class FF12TZAGame(BasicGame):
             for path in Path(folder.absolutePath()).glob("FFXII_???")
             if path.is_file() and path.name[6:9].isdigit()
         ]
+
+    def _get_last_logged_steam_id(self) -> str | None:
+        steam_path = find_steam_path()
+        if not steam_path:
+            return None
+
+        loginusers_path = steam_path / "config" / "loginusers.vdf"
+        try:
+            with open(loginusers_path, "r", encoding = "utf-8") as f:
+                data = vdf.load(f)
+
+            users = data.get("users", {})
+            for steam_id, info in users.items():
+                if info.get("MostRecent") == "1":
+                    return steam_id
+
+            if users:
+                return next(iter(users))
+        except Exception:
+            return None
+
+    def _set_last_logged_steam_id(self):
+        last_steam_id = self._get_last_logged_steam_id()
+        if not last_steam_id:
+            return
+
+        cur_steam_id = self._get_setting(SettingName.STEAM_ID_64)
+        if last_steam_id == cur_steam_id:
+            return
+
+        self._set_setting(SettingName.STEAM_ID_64, last_steam_id)
+        if cur_steam_id:
+            qInfo(f"Updated Steam ID from '{cur_steam_id}' to '{last_steam_id}'.")
+        else:
+            qInfo(f"Set Steam ID to '{last_steam_id}'.")
