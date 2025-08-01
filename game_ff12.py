@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt6.QtCore import (
     QDateTime,
     QDir,
+    QFileInfo,
     QStandardPaths,
     qInfo,
 )
@@ -210,6 +211,18 @@ class FF12TZAGame(BasicGame):
             docs_path = QDir(docs_path.absoluteFilePath(steam_id))
 
         return docs_path
+
+    def executables(self):
+            return [
+                mobase.ExecutableInfo(
+                    f"{self.gameName()}",
+                    QFileInfo(self.gameDirectory().absoluteFilePath(self.binaryName())),
+                ),
+                mobase.ExecutableInfo(
+                    "Configuration Tool",
+                    QFileInfo(self.gameDirectory().absoluteFilePath("x64/FFXII_TZA_GameSetting.exe")),
+                ),
+            ]
 
     def iniFiles(self):
         return [
