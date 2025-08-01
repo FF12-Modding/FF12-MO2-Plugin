@@ -155,12 +155,14 @@ class FF12TZAGame(BasicGame):
 
     def __init__(self):
         super().__init__()
+        self._suppress_setting_callback = False
 
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
         self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
+        organizer.onPluginSettingChanged(self._on_plugin_setting_changed_callback)
 
         auto_steam_id = self._get_setting(SettingName.AUTO_STEAM_ID)
         if auto_steam_id is True:
@@ -221,6 +223,30 @@ class FF12TZAGame(BasicGame):
             for path in Path(folder.absolutePath()).glob("FFXII_???")
             if path.is_file() and path.name[6:9].isdigit()
         ]
+
+    def _on_plugin_setting_changed_callback(
+        self,
+        plugin_name: str,
+        setting: str,
+        old: mobase.MoVariant,
+        new: mobase.MoVariant,
+    ):
+        if plugin_name != self.name() or self._suppress_setting_callback is True:
+            return
+
+        if setting == SettingName.AUTO_STEAM_ID and old is False and new is True:
+            self._suppress_setting_callback = True
+            try:
+                self._set_last_logged_steam_id()
+            finally:
+                self._suppress_setting_callback = False
+        elif setting == SettingName.STEAM_ID_64 and old != new:
+            if self._get_setting(SettingName.AUTO_STEAM_ID) is True:
+                self._suppress_setting_callback = True
+                try:
+                    self._set_setting(SettingName.AUTO_STEAM_ID, False)
+                finally:
+                    self._suppress_setting_callback = False
 
     def _get_last_logged_steam_id(self) -> str | None:
         steam_path = find_steam_path()
