@@ -1,5 +1,6 @@
 import mobase
 import shutil
+import os
 
 from collections.abc import Mapping
 from enum import StrEnum
@@ -52,11 +53,40 @@ class FF12ModDataChecker(BasicModDataChecker):
             )
         )
 
+    def _set_setting(self, key: str, value: mobase.MoVariant):
+        self._organizer.setPluginSetting(self._plugin_name, key, value)
+
+    def _check_mod_for_launcher(self, filetree: mobase.IFileTree):
+        modlist = self._organizer.modList()
+        qInfo(f"Searching for launcher in {filetree.name()}")
+        mod = modlist.getMod(filetree.name())
+        if not mod or mod.isForeign() or mod.isBackup() or mod.isSeparator():
+            return
+
+        path = self._find_launcher_path(filetree)
+        if path != "":
+            qInfo(f"Found launcher at {mod.absolutePath()}/{path}")
+            self._set_setting("launcher_path", os.path.join(mod.absolutePath(), path))
+        return
+
+    def _find_launcher_path(self, filetree: mobase.IFileTree) -> str:
+        path = ""
+        for entry in filetree:
+            if is_directory(entry):
+                path = self._find_launcher_path(entry)
+                continue
+
+            if not is_directory(entry) and entry.name().casefold() == "ff12-launcher.exe":
+                return entry.path()
+
+        return path
+
     def dataLooksValid(
         self, filetree: mobase.IFileTree
     ) -> mobase.ModDataChecker.CheckReturn:
         status = mobase.ModDataChecker.VALID
 
+        self._check_mod_for_launcher(filetree)
         rp = self._regex_patterns
         for entry in filetree:
             name = entry.name().casefold()
@@ -192,6 +222,14 @@ class FF12TZAGame(BasicGame):
                 ),
                 default_value = "",
             ),
+            mobase.PluginSetting(
+                "launcher_path",
+                (
+                    "Path which contains the launcher."
+                    "Updates whenever you install a mod containing it."
+                ),
+                default_value="",
+            )
         ]
 
     def _get_setting(self, key: str) -> mobase.MoVariant:
@@ -214,10 +252,17 @@ class FF12TZAGame(BasicGame):
         return docs_path
 
     def executables(self):
+            launcher_path = self._get_setting("launcher_path")
+            if not launcher_path:
+                launcher_path = self.gameDirectory().absoluteFilePath("x64/ff12-launcher.exe")
             # Windows isn't necessarily installed in "C:\Windows\".
             cmd_path = shutil.which('cmd.exe')
 
             return [
+                mobase.ExecutableInfo(
+                    f"{self.gameName()} Launcher",
+                    QFileInfo(launcher_path),
+                ),
                 mobase.ExecutableInfo(
                     f"{self.gameName()}",
                     QFileInfo(self.gameDirectory().absoluteFilePath(self.binaryName())),
