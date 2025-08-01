@@ -1,4 +1,5 @@
 import mobase
+import shutil
 
 from collections.abc import Mapping
 from enum import StrEnum
@@ -213,6 +214,9 @@ class FF12TZAGame(BasicGame):
         return docs_path
 
     def executables(self):
+            # Windows isn't necessarily installed in "C:\Windows\".
+            cmd_path = shutil.which('cmd.exe')
+
             return [
                 mobase.ExecutableInfo(
                     f"{self.gameName()}",
@@ -222,6 +226,10 @@ class FF12TZAGame(BasicGame):
                     "Configuration Tool",
                     QFileInfo(self.gameDirectory().absoluteFilePath("x64/FFXII_TZA_GameSetting.exe")),
                 ),
+                mobase.ExecutableInfo(
+                    "Reload VFS",
+                    QFileInfo(cmd_path)
+                ).withArgument(f'/c'),
             ]
 
     def iniFiles(self):
