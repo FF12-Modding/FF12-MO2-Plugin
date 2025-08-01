@@ -173,7 +173,7 @@ class FF12TZAGame(BasicGame):
         return True
 
     def version(self):
-        return mobase.VersionInfo(0, 2, 0, mobase.ReleaseType.BETA)
+        return mobase.VersionInfo(0, 4, 0, mobase.ReleaseType.BETA)
 
     def settings(self) -> list[mobase.PluginSetting]:
         return [
