@@ -1,0 +1,27 @@
+{
+  "template": "# Changelog\n\n## Changes in ${{RELEASE_TAG}}\n\n${{CHANGELOG}}\n",
+  "pr_template": "- ${{TITLE}} (#${{NUMBER}})\n  ${{COMMITS}}\n",
+  "commit_template": "    - ${{COMMIT_MESSAGE}} [${{COMMIT_SHA}}](${{COMMIT_URL}})",
+  "categories": [
+    {
+      "title": "🚀 Features",
+      "labels": ["feature", "enhancement"]
+    },
+    {
+      "title": "🐛 Bug Fixes",
+      "labels": ["bug", "fix"]
+    },
+    {
+      "title": "🧰 Maintenance",
+      "labels": ["chore", "maintenance"]
+    },
+    {
+      "title": "📦 Others",
+      "labels": []
+    }
+  ],
+  "sort": "merged_at",
+  "max_pull_requests": 50,
+  "max_commits": 10,
+  "fallback": "commits"
+}
