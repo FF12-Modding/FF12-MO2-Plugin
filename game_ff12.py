@@ -112,7 +112,7 @@ class FF12UpdateChecker:
                 self.setWindowTitle("FF12 Plugin Update")
                 self.setMinimumSize(500, 400)
                 layout = QVBoxLayout(self)
-                label = QLabel(f"A new version ({tag}) is available!\n\nPatch notes:")
+                label = QLabel(f"A new version ({tag}) of FF12 MO2 Plugin is available!\n\nPatch notes:")
                 layout.addWidget(label)
                 browser = QTextBrowser()
                 browser.setMarkdown(notes)
