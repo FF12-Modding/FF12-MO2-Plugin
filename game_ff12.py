@@ -1,4 +1,8 @@
 import mobase
+VERSION_MAJOR = 0
+VERSION_MINOR = 4
+VERSION_PATCH = 0
+VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 import shutil
 
 from collections.abc import Mapping
@@ -173,7 +177,12 @@ class FF12TZAGame(BasicGame):
         return True
 
     def version(self):
-        return mobase.VersionInfo(0, 4, 0, mobase.ReleaseType.BETA)
+        return mobase.VersionInfo(
+            VERSION_MAJOR,
+            VERSION_MINOR,
+            VERSION_PATCH,
+            VERSION_RELEASE_TYPE
+        )
 
     def settings(self) -> list[mobase.PluginSetting]:
         return [
