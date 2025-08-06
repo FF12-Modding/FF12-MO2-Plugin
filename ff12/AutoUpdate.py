@@ -55,6 +55,10 @@ class FF12UpdateChecker:
             return None
 
     def _is_newer(self, v1, v2):
+        if v2 is None:
+            return True
+        if v1 is None:
+            return False
         return v1 > v2
 
     def check_for_update(self):
