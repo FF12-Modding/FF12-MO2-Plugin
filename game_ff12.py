@@ -502,6 +502,10 @@ class FF12TZAGame(BasicGame):
             self,
             window: QMainWindow
     ):
+        current_game = self._organizer.managedGame()
+        if current_game is not self:
+            return
+        
         if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
             update_checker = FF12UpdateChecker(
                 "FF12-Modding", "FF12-MO2-Plugin",
@@ -509,3 +513,4 @@ class FF12TZAGame(BasicGame):
                 VERSION_RELEASE_TYPE
             )
             update_checker.check_for_update()
+    
