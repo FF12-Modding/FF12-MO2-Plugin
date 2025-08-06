@@ -223,16 +223,26 @@ class FF12UpdateChecker:
                 zip_ref.extractall(tmpdir)
             # Find game_ff12.py in extracted files
             new_script = None
+            ff12_update_dir = None
             for root, dirs, files in os.walk(tmpdir):
                 if 'game_ff12.py' in files:
                     new_script = os.path.join(root, 'game_ff12.py')
-                    break
+                if 'ff12' in dirs:
+                    ff12_update_dir = os.path.join(root, 'ff12')
             if not new_script:
                 self._show_error("game_ff12.py not found in update package.")
                 return
             # Replace current script
             current_script = os.path.abspath(__file__)
+            plugin_dir = os.path.dirname(current_script)
             shutil.copy2(new_script, current_script)
+            # Remove old ff12 directory if it exists
+            ff12_plugin_dir = os.path.join(plugin_dir, 'ff12')
+            if os.path.isdir(ff12_plugin_dir):
+                shutil.rmtree(ff12_plugin_dir, ignore_errors=True)
+            # Copy ff12 directory from update if it exists
+            if ff12_update_dir and os.path.isdir(ff12_update_dir):
+                shutil.copytree(ff12_update_dir, ff12_plugin_dir)
             self._show_restart_dialog()
         except Exception as e:
             self._show_error(f"Update failed: {e}")
