@@ -76,9 +76,14 @@ class FF12UpdateChecker:
             if ver and self._is_newer(ver, self.current_version):
                 if latest is None or self._is_newer(ver, self._parse_version(latest['tag_name'])):
                     latest = rel
-    
-        if latest and latest.get('tag_name') != skip_version:
-            self._show_update_dialog(latest)
+
+        if latest:
+            latest_ver = self._parse_version(latest.get('tag_name'))
+            skip_ver = self._parse_version(skip_version)
+            if not self._is_newer(latest_ver, skip_ver):
+                self._log_skip_update()
+            else:
+                self._show_update_dialog(latest)
         else:
             self._log_no_update()
 
@@ -170,6 +175,9 @@ class FF12UpdateChecker:
 
     def _log_no_update(self):
         qInfo("No updates available for FF12 Plugin.")
+    
+    def _log_skip_update(self):
+        qInfo("Skipped update for FF12 Plugin.")
 
     def _download_and_update(self, release):
         asset = None
