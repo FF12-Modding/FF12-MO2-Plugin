@@ -101,14 +101,14 @@ class FF12UpdateChecker:
         # Build markdown
         notes_md = ""
         for i, (ver, tag, body) in enumerate(changelogs):
-            notes_md += f"## Changes in {tag}\n{body}"
+            notes_md += f"## Changes in {tag} []()([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
             if i < len(changelogs) - 1:
                 notes_md += "\n***\n"
             else:
                 notes_md += "\n"
         # If no changelogs found, fallback to latest
         if not notes_md:
-            notes_md = f"## Changes in {latest_release.get('tag_name', '')}\n{latest_release.get('body', 'No patch notes.')}\n"
+            notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
         current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
         latest_tag = latest_release.get('tag_name', '')
         app = QApplication.instance() or QApplication(sys.argv)
