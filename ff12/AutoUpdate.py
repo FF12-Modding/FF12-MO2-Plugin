@@ -9,6 +9,7 @@ from datetime import datetime
 from PyQt6.QtCore import (
     QDateTime,
     qInfo,
+    qWarning,
 )
 from PyQt6.QtWidgets import (
     QMessageBox,
@@ -40,7 +41,7 @@ class FF12UpdateChecker:
         url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
         try:
             with urllib.request.urlopen(url, timeout=10) as response:
-            data = response.read()
+                data = response.read()
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 raise Exception(f"GitHub repository {self.repo_owner}/{self.repo_name} not found (404).")
@@ -120,29 +121,33 @@ class FF12UpdateChecker:
                 return date_iso
 
     def _collect_changelogs(self, latest_release):
-        all_releases = self._get_releases()
-        include_prerelease = self.release_type != mobase.ReleaseType.FINAL
-        current_ver = self.current_version
-        changelogs = []
-        for rel in all_releases:
-            if not include_prerelease and rel.get('prerelease', False):
-                continue
-            tag = rel.get('tag_name', '')
-            ver = self._parse_version(tag)
-            if ver and self._is_newer(ver, current_ver):
-                body = rel.get('body', 'No patch notes.')
-                changelogs.append((ver, tag, body, rel.get('published_at', '')))
-        changelogs.sort(reverse=True)
-        notes_md = ""
-        for i, (ver, tag, body, published_at) in enumerate(changelogs):
-            notes_md += f"## Changes in {tag} []()  Date: {self._get_date_from_iso(published_at)} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
-            if i < len(changelogs) - 1:
-                notes_md += "\n***\n"
-            else:
-                notes_md += "\n"
-        if not notes_md:
-            notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {self._get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
-        return notes_md
+        try:
+            all_releases = self._get_releases()
+            include_prerelease = self.release_type != mobase.ReleaseType.FINAL
+            current_ver = self.current_version
+            changelogs = []
+            for rel in all_releases:
+                if not include_prerelease and rel.get('prerelease', False):
+                    continue
+                tag = rel.get('tag_name', '')
+                ver = self._parse_version(tag)
+                if ver and self._is_newer(ver, current_ver):
+                    body = rel.get('body', 'No patch notes.')
+                    changelogs.append((ver, tag, body, rel.get('published_at', '')))
+            changelogs.sort(reverse=True)
+            notes_md = ""
+            for i, (ver, tag, body, published_at) in enumerate(changelogs):
+                notes_md += f"## Changes in {tag} []()  Date: {self._get_date_from_iso(published_at)} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
+                if i < len(changelogs) - 1:
+                    notes_md += "\n***\n"
+                else:
+                    notes_md += "\n"
+            if not notes_md:
+                notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {self._get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
+            return notes_md
+        except Exception as e:
+            qWarning(f"Failed to collect changelogs: {e}")
+            return "## Error collecting changelogs\nAn error occurred while fetching the changelogs. Please check the log for details."
 
     def _create_update_dialog(self, notes_md, current_version, latest_tag, latest_date_str):
         class UpdateDialog(QDialog):
