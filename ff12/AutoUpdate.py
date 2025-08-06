@@ -107,8 +107,7 @@ class FF12UpdateChecker:
             except Exception:
                 return date_iso
 
-    def _show_update_dialog(self, latest_release):
-        # Gather all releases newer than current_version
+    def _collect_changelogs(self, latest_release):
         all_releases = self._get_releases()
         include_prerelease = self.release_type != mobase.ReleaseType.FINAL
         current_ver = self.current_version
@@ -120,27 +119,20 @@ class FF12UpdateChecker:
             ver = self._parse_version(tag)
             if ver and self._is_newer(ver, current_ver):
                 body = rel.get('body', 'No patch notes.')
-                changelogs.append((ver, tag, body))
-        # Sort newest to oldest
+                changelogs.append((ver, tag, body, rel.get('published_at', '')))
         changelogs.sort(reverse=True)
-        # Build markdown
         notes_md = ""
-        for i, (ver, tag, body) in enumerate(changelogs):
-            notes_md += f"## Changes in {tag} []()  Date: {self._get_date_from_iso(rel.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
+        for i, (ver, tag, body, published_at) in enumerate(changelogs):
+            notes_md += f"## Changes in {tag} []()  Date: {self._get_date_from_iso(published_at)} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
             if i < len(changelogs) - 1:
                 notes_md += "\n***\n"
             else:
                 notes_md += "\n"
-        # If no changelogs found, fallback to latest
         if not notes_md:
             notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {self._get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
-        current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
-        latest_tag = latest_release.get('tag_name', '')
+        return notes_md
 
-        latest_date_str = self._get_date_time_from_iso(latest_release.get('published_at', ''))
-
-        app = QApplication.instance() or QApplication(sys.argv)
-
+    def _create_update_dialog(self, notes_md, current_version, latest_tag, latest_date_str):
         from PyQt6.QtCore import pyqtSignal
         class UpdateDialog(QDialog):
             skip_update = pyqtSignal()
@@ -169,10 +161,9 @@ class FF12UpdateChecker:
                 remind_btn.clicked.connect(self.remind_later.emit)
                 skip_btn.clicked.connect(self.skip_update.emit)
                 cancel_btn.clicked.connect(self.close)
+        return UpdateDialog
 
-        dialog = UpdateDialog(parent=self.parentWindow)
-        dialog.activateWindow()
-        dialog.raise_()
+    def _connect_update_dialog(self, dialog, latest_release, latest_tag):
         def on_accept():
             self._download_and_update(latest_release)
             dialog.close()
@@ -186,6 +177,18 @@ class FF12UpdateChecker:
         dialog.accepted.connect(on_accept)
         dialog.skip_update.connect(on_skip)
         dialog.remind_later.connect(on_remind)
+
+    def _show_update_dialog(self, latest_release):
+        notes_md = self._collect_changelogs(latest_release)
+        current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
+        latest_tag = latest_release.get('tag_name', '')
+        latest_date_str = self._get_date_time_from_iso(latest_release.get('published_at', ''))
+        app = QApplication.instance() or QApplication(sys.argv)
+        UpdateDialog = self._create_update_dialog(notes_md, current_version, latest_tag, latest_date_str)
+        dialog = UpdateDialog(parent=self.parentWindow)
+        dialog.activateWindow()
+        dialog.raise_()
+        self._connect_update_dialog(dialog, latest_release, latest_tag)
         dialog.show()
 
     def _log_no_update(self):
