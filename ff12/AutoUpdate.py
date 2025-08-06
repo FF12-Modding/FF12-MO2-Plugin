@@ -38,8 +38,17 @@ class FF12UpdateChecker:
 
     def _get_releases(self):
         url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
-        with urllib.request.urlopen(url) as response:
+        try:
+            with urllib.request.urlopen(url, timeout=10) as response:
             data = response.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise Exception(f"GitHub repository {self.repo_owner}/{self.repo_name} not found (404).")
+            elif e.code == 403:
+                raise Exception("GitHub API rate limit exceeded (403). Please try again later.")
+            else:
+                raise Exception(f"HTTP error occurred: {e.code} {e.reason}")
+
         releases = json.loads(data)
         return releases
 
