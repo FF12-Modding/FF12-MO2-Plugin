@@ -3,7 +3,7 @@ VERSION_MAJOR = 0
 VERSION_MINOR = 4
 VERSION_PATCH = 0
 VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
-import shutil
+import shutil # needed by update checker and for getting cmd.exe path
 
 from collections.abc import Mapping
 from enum import StrEnum
@@ -34,6 +34,148 @@ from ..basic_game import BasicGame
 
 from ..steam_utils import find_steam_path
 import vdf
+
+# Imports needed for update checking
+import urllib.request
+import json
+import tempfile
+import zipfile
+import os
+from PyQt6.QtWidgets import (
+    QMessageBox,
+    QApplication,
+    QDialog,
+    QVBoxLayout,
+    QLabel,
+    QTextBrowser,
+    QDialogButtonBox,
+)
+from PyQt6.QtCore import Qt
+import sys
+
+class FF12UpdateChecker:
+    def __init__(self, repo_owner, repo_name, major, minor, patch, release_type):
+        self.repo_owner = repo_owner
+        self.repo_name = repo_name
+        self.current_version = (major, minor, patch)
+        self.release_type = release_type
+
+    def _get_releases(self):
+        url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
+        with urllib.request.urlopen(url) as response:
+            data = response.read()
+        releases = json.loads(data)
+        return releases
+
+    def _parse_version(self, tag):
+        # Handles tags like v1.2.3, 1.2.3, v1.2.3-suffix, 1.2.3-suffix
+        tag = tag.lstrip('v')
+        # Remove any suffix after patch number before checking version
+        main_part = tag.split('-')[0]
+        parts = main_part.split('.')
+        if len(parts) < 3:
+            return None
+        try:
+            return tuple(int(p) for p in parts[:3])
+        except Exception:
+            return None
+
+    def _is_newer(self, v1, v2):
+        return v1 > v2
+
+    def check_for_update(self):
+        releases = self._get_releases()
+        # If it's a final release, we don't want to include prerelease versions
+        include_prerelease = self.release_type != mobase.ReleaseType.FINAL
+        latest = None
+        for rel in releases:
+            if not include_prerelease and rel.get('prerelease', False):
+                continue
+            ver = self._parse_version(rel.get('tag_name', ''))
+            if ver and self._is_newer(ver, self.current_version):
+                if latest is None or self._is_newer(ver, self._parse_version(latest['tag_name'])):
+                    latest = rel
+        if latest:
+            self._show_update_dialog(latest)
+        else:
+            self._log_no_update()
+
+    def _show_update_dialog(self, release):
+        notes = release.get('body', 'No patch notes.')
+        tag = release.get('tag_name', '')
+        app = QApplication.instance() or QApplication(sys.argv)
+
+        class UpdateDialog(QDialog):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setWindowTitle("FF12 Plugin Update")
+                self.setMinimumSize(500, 400)
+                layout = QVBoxLayout(self)
+                label = QLabel(f"A new version ({tag}) is available!\n\nPatch notes:")
+                layout.addWidget(label)
+                browser = QTextBrowser()
+                browser.setMarkdown(notes)
+                browser.setOpenExternalLinks(True)
+                layout.addWidget(browser)
+                button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Yes | QDialogButtonBox.StandardButton.No)
+                layout.addWidget(button_box)
+                button_box.accepted.connect(self.accept)
+                button_box.rejected.connect(self.reject)
+
+        dialog = UpdateDialog()
+        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
+        dialog.activateWindow()
+        dialog.raise_()
+        result = dialog.exec()
+        if result == QDialog.DialogCode.Accepted:
+            self._download_and_update(release)
+
+    def _log_no_update(self):
+        qInfo("No updates available for FF12 Plugin.")
+
+    def _download_and_update(self, release):
+        asset = None
+        for a in release.get('assets', []):
+            if a.get('name', '').endswith('.zip'):
+                asset = a
+                break
+        if not asset:
+            self._show_error("No zip asset found in release.")
+            return
+        url = asset['browser_download_url']
+        tmpdir = tempfile.mkdtemp()
+        zip_path = os.path.join(tmpdir, asset['name'])
+        try:
+            with urllib.request.urlopen(url) as response, open(zip_path, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(tmpdir)
+            # Find game_ff12.py in extracted files
+            new_script = None
+            for root, dirs, files in os.walk(tmpdir):
+                if 'game_ff12.py' in files:
+                    new_script = os.path.join(root, 'game_ff12.py')
+                    break
+            if not new_script:
+                self._show_error("game_ff12.py not found in update package.")
+                return
+            # Replace current script
+            current_script = os.path.abspath(__file__)
+            shutil.copy2(new_script, current_script)
+            self._show_restart_dialog()
+        except Exception as e:
+            self._show_error(f"Update failed: {e}")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def _show_error(self, msg):
+        app = QApplication.instance() or QApplication(sys.argv)
+        QMessageBox.critical(None, "FF12 Plugin Update", msg)
+
+    def _show_restart_dialog(self):
+        app = QApplication.instance() or QApplication(sys.argv)
+        QMessageBox.information(None, "FF12 Plugin Update", "Update complete! Please restart Mod Organizer 2 for changes to take effect.")
 
 class SettingsManager:
     _instance = None
@@ -198,6 +340,12 @@ class FF12TZAGame(BasicGame):
         if auto_steam_id is True:
             self._set_last_logged_steam_id()
 
+        update_checker = FF12UpdateChecker(
+            "FF12-Modding", "FF12-MO2-Plugin",
+            VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+            VERSION_RELEASE_TYPE
+        )
+        update_checker.check_for_update()
         return True
 
     def version(self):
