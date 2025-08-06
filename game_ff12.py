@@ -51,7 +51,10 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QMainWindow
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import (
+    Qt,
+    QDateTime
+)
 import sys
 
 class FF12UpdateChecker:
@@ -85,18 +88,29 @@ class FF12UpdateChecker:
         return v1 > v2
 
     def check_for_update(self):
-        releases = self._get_releases()
-        # If it's a final release, we don't want to include prerelease versions
+        # GitHub API has 60 requests per hour limit for unauthenticated requests.
+        # So let's not make a big fuss about it and handle errors gracefully.
+        try:
+            releases = self._get_releases()
+        except Exception as e:
+            qInfo(f"Failed to fetch releases: {e}")
+            return
         include_prerelease = self.release_type != mobase.ReleaseType.FINAL
         latest = None
+        skip_version = settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION)
+
+        qInfo(f"Skip version: {skip_version}")
+
         for rel in releases:
             if not include_prerelease and rel.get('prerelease', False):
                 continue
-            ver = self._parse_version(rel.get('tag_name', ''))
+            tag = rel.get('tag_name', '')
+            ver = self._parse_version(tag)
             if ver and self._is_newer(ver, self.current_version):
                 if latest is None or self._is_newer(ver, self._parse_version(latest['tag_name'])):
                     latest = rel
-        if latest:
+    
+        if latest and latest.get('tag_name') != skip_version:
             self._show_update_dialog(latest)
         else:
             self._log_no_update()
@@ -147,10 +161,29 @@ class FF12UpdateChecker:
                 browser.setMarkdown(notes_md)
                 browser.setOpenExternalLinks(True)
                 layout.addWidget(browser)
-                button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Yes | QDialogButtonBox.StandardButton.No)
+                button_box = QDialogButtonBox()
+                yes_btn = button_box.addButton("Update now", QDialogButtonBox.ButtonRole.AcceptRole)
+                no_btn = button_box.addButton("Remind me later", QDialogButtonBox.ButtonRole.DestructiveRole)
+                skip_btn = button_box.addButton("Skip this version", QDialogButtonBox.ButtonRole.RejectRole)
+                cancel_btn = button_box.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
                 layout.addWidget(button_box)
-                button_box.accepted.connect(self.accept)
-                button_box.rejected.connect(self.reject)
+                yes_btn.clicked.connect(self.accept)
+                no_btn.clicked.connect(self._remind_later)
+                skip_btn.clicked.connect(self._skip_version)
+                cancel_btn.clicked.connect(self._cancel)
+                self._action = None
+
+            def _cancel(self):
+                self._action = "cancel"
+                self.reject()
+
+            def _remind_later(self):
+                self._action = "remind"
+                self.reject()
+
+            def _skip_version(self):
+                self._action = "skip"
+                self.reject()
 
         dialog = UpdateDialog()
         dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -158,8 +191,15 @@ class FF12UpdateChecker:
         dialog.activateWindow()
         dialog.raise_()
         result = dialog.exec()
+
         if result == QDialog.DialogCode.Accepted:
             self._download_and_update(latest_release)
+        elif getattr(dialog, "_action", None) == "skip":
+            settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, latest_tag)
+        elif getattr(dialog, "_action", None) == "remind":
+            # Save remind date (now + 1 day)
+            remind_time = QDateTime.currentDateTime().addDays(1).toSecsSinceEpoch()
+            settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
 
     def _log_no_update(self):
         qInfo("No updates available for FF12 Plugin.")
@@ -343,6 +383,8 @@ class SettingName(StrEnum):
     AUTO_STEAM_ID = "autoSteamId"
     STEAM_ID_64 = "steamId64"
     DISABLE_AUTO_UPDATES = "disableAutoUpdates"
+    SKIP_UPDATE_VERSION = "skipUpdateVersion"
+    SKIP_UPDATE_UNTIL_DATE = "skipUpdateUntilDate"
 
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
@@ -371,7 +413,7 @@ class FF12TZAGame(BasicGame):
         auto_steam_id = settings_manager().get_setting(SettingName.AUTO_STEAM_ID)
         if auto_steam_id is True:
             self._set_last_logged_steam_id()
-    
+
         return True
 
     def version(self):
@@ -405,6 +447,20 @@ class FF12TZAGame(BasicGame):
                     "If true, disables automatic updates for the plugin."
                 ),
                 default_value = False,
+            ),
+            mobase.PluginSetting(
+                SettingName.SKIP_UPDATE_VERSION,
+                (
+                    "If set, skips update dialog for this version."
+                ),
+                default_value = "v0.0.0",
+            ),
+            mobase.PluginSetting(
+                SettingName.SKIP_UPDATE_UNTIL_DATE,
+                (
+                    "If set, skips update dialog until this date (in seconds since epoch)."
+                ),
+                default_value = 0,
             ),
         ]
 
@@ -536,6 +592,13 @@ class FF12TZAGame(BasicGame):
             return
         
         if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
+
+            remind_time = settings_manager().get_setting(SettingName.SKIP_UPDATE_UNTIL_DATE)
+            now_secs = int(QDateTime.currentDateTime().toSecsSinceEpoch())
+
+            if remind_time and now_secs is not None and remind_time > now_secs:
+                return
+
             update_checker = FF12UpdateChecker(
                 "FF12-Modding", "FF12-MO2-Plugin",
                 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
