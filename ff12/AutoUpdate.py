@@ -20,7 +20,10 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QMainWindow,
 )
-from PyQt6.QtCore import QDateTime
+from PyQt6.QtCore import (
+    QDateTime,
+    pyqtSignal,
+)
 import sys
 
 from .SettingsManager import settings_manager, SettingName
@@ -133,7 +136,6 @@ class FF12UpdateChecker:
         return notes_md
 
     def _create_update_dialog(self, notes_md, current_version, latest_tag, latest_date_str):
-        from PyQt6.QtCore import pyqtSignal
         class UpdateDialog(QDialog):
             skip_update = pyqtSignal()
             remind_later = pyqtSignal()
