@@ -35,6 +35,29 @@ from ..basic_game import BasicGame
 from ..steam_utils import find_steam_path
 import vdf
 
+class SettingsManager:
+    _instance = None
+
+    def __init__(self, organizer: mobase.IOrganizer, game_name: str):
+        self._organizer = organizer
+        self._game_name = game_name
+        SettingsManager._instance = self
+
+    @staticmethod
+    def get_instance():
+        if SettingsManager._instance is None:
+            raise RuntimeError("SettingsManager not initialized.")
+        return SettingsManager._instance
+
+    def get_setting(self, key: str):
+        return self._organizer.pluginSetting(self._game_name, key)
+
+    def set_setting(self, key: str, value):
+        self._organizer.setPluginSetting(self._game_name, key, value)
+
+def settings_manager():
+    return SettingsManager.get_instance()
+
 class FF12ModDataChecker(BasicModDataChecker):
     def __init__(self, organizer: mobase.IOrganizer, plugin_name: str):
         self._organizer = organizer
@@ -165,12 +188,13 @@ class FF12TZAGame(BasicGame):
 
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
+        SettingsManager(organizer, self.name())
         self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
         organizer.onPluginSettingChanged(self._on_plugin_setting_changed_callback)
 
-        auto_steam_id = self._get_setting(SettingName.AUTO_STEAM_ID)
+        auto_steam_id = settings_manager().get_setting(SettingName.AUTO_STEAM_ID)
         if auto_steam_id is True:
             self._set_last_logged_steam_id()
 
@@ -203,12 +227,6 @@ class FF12TZAGame(BasicGame):
             ),
         ]
 
-    def _get_setting(self, key: str) -> mobase.MoVariant:
-        return self._organizer.pluginSetting(self.name(), key)
-
-    def _set_setting(self, key: str, value: mobase.MoVariant):
-        self._organizer.setPluginSetting(self.name(), key, value)
-
     def documentsDirectory(self) -> QDir:
         docs_path = QDir(
             QDir(
@@ -216,7 +234,7 @@ class FF12TZAGame(BasicGame):
             ).filePath("My Games/FINAL FANTASY XII THE ZODIAC AGE")
         )
 
-        steam_id = self._get_setting(SettingName.STEAM_ID_64)
+        steam_id = settings_manager().get_setting(SettingName.STEAM_ID_64)
         if steam_id:
             docs_path = QDir(docs_path.absoluteFilePath(steam_id))
 
@@ -286,10 +304,10 @@ class FF12TZAGame(BasicGame):
             finally:
                 self._suppress_setting_callback = False
         elif setting == SettingName.STEAM_ID_64 and old != new:
-            if self._get_setting(SettingName.AUTO_STEAM_ID) is True:
+            if settings_manager().get_setting(SettingName.AUTO_STEAM_ID) is True:
                 self._suppress_setting_callback = True
                 try:
-                    self._set_setting(SettingName.AUTO_STEAM_ID, False)
+                    settings_manager().set_setting(SettingName.AUTO_STEAM_ID, False)
                 finally:
                     self._suppress_setting_callback = False
 
@@ -318,11 +336,11 @@ class FF12TZAGame(BasicGame):
         if not last_steam_id:
             return
 
-        cur_steam_id = self._get_setting(SettingName.STEAM_ID_64)
+        cur_steam_id = settings_manager().get_setting(SettingName.STEAM_ID_64)
         if last_steam_id == cur_steam_id:
             return
 
-        self._set_setting(SettingName.STEAM_ID_64, last_steam_id)
+        settings_manager().set_setting(SettingName.STEAM_ID_64, last_steam_id)
         if cur_steam_id:
             qInfo(f"Updated Steam ID from '{cur_steam_id}' to '{last_steam_id}'.")
         else:
