@@ -312,6 +312,7 @@ def getSaveMetadata(savepath: Path, save: mobase.ISaveGame) -> Mapping[str, str]
 class SettingName(StrEnum):
     AUTO_STEAM_ID = "autoSteamId"
     STEAM_ID_64 = "steamId64"
+    DISABLE_AUTO_UPDATES = "disableAutoUpdates"
 
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
@@ -340,12 +341,14 @@ class FF12TZAGame(BasicGame):
         if auto_steam_id is True:
             self._set_last_logged_steam_id()
 
-        update_checker = FF12UpdateChecker(
-            "FF12-Modding", "FF12-MO2-Plugin",
-            VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
-            VERSION_RELEASE_TYPE
-        )
-        update_checker.check_for_update()
+        if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
+            update_checker = FF12UpdateChecker(
+                "FF12-Modding", "FF12-MO2-Plugin",
+                VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+                VERSION_RELEASE_TYPE
+            )
+            update_checker.check_for_update()
+    
         return True
 
     def version(self):
@@ -372,6 +375,13 @@ class FF12TZAGame(BasicGame):
                     "Leave empty when launching the game without Steam."
                 ),
                 default_value = "",
+            ),
+            mobase.PluginSetting(
+                SettingName.DISABLE_AUTO_UPDATES,
+                (
+                    f"If true, disables automatic updates for the plugin."
+                ),
+                default_value = False,
             ),
         ]
 
