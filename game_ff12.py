@@ -363,7 +363,8 @@ class FF12TZAGame(BasicGame):
             update_checker = FF12UpdateChecker(
                 "FF12-Modding", "FF12-MO2-Plugin",
                 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
-                VERSION_RELEASE_TYPE
+                VERSION_RELEASE_TYPE,
+                window
             )
             update_checker.check_for_update()
     

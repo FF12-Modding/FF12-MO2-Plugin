@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QTextBrowser,
     QDialogButtonBox,
+    QMainWindow,
 )
 from PyQt6.QtCore import QDateTime
 import sys
@@ -25,11 +26,12 @@ import sys
 from .SettingsManager import settings_manager, SettingName
 
 class FF12UpdateChecker:
-    def __init__(self, repo_owner, repo_name, major, minor, patch, release_type):
+    def __init__(self, repo_owner, repo_name, major, minor, patch, release_type, parent: QMainWindow = None):
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.current_version = (major, minor, patch)
         self.release_type = release_type
+        self.parentWindow = parent
 
     def _get_releases(self):
         url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
@@ -139,7 +141,10 @@ class FF12UpdateChecker:
 
         app = QApplication.instance() or QApplication(sys.argv)
 
+        from PyQt6.QtCore import pyqtSignal
         class UpdateDialog(QDialog):
+            skip_update = pyqtSignal()
+            remind_later = pyqtSignal()
             def __init__(self, parent=None):
                 super().__init__(parent)
                 self.setWindowTitle("FF12 Plugin Update")
@@ -155,42 +160,33 @@ class FF12UpdateChecker:
                 browser.setOpenExternalLinks(True)
                 layout.addWidget(browser)
                 button_box = QDialogButtonBox()
-                yes_btn = button_box.addButton("Update now", QDialogButtonBox.ButtonRole.AcceptRole)
-                no_btn = button_box.addButton("Remind me later", QDialogButtonBox.ButtonRole.DestructiveRole)
+                update_btn = button_box.addButton("Update now", QDialogButtonBox.ButtonRole.AcceptRole)
+                remind_btn = button_box.addButton("Remind me later", QDialogButtonBox.ButtonRole.DestructiveRole)
                 skip_btn = button_box.addButton("Skip this version", QDialogButtonBox.ButtonRole.RejectRole)
                 cancel_btn = button_box.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
                 layout.addWidget(button_box)
-                yes_btn.clicked.connect(self.accept)
-                no_btn.clicked.connect(self._remind_later)
-                skip_btn.clicked.connect(self._skip_version)
-                cancel_btn.clicked.connect(self._cancel)
-                self._action = None
+                update_btn.clicked.connect(self.accept)
+                remind_btn.clicked.connect(self.remind_later.emit)
+                skip_btn.clicked.connect(self.skip_update.emit)
+                cancel_btn.clicked.connect(self.close)
 
-            def _cancel(self):
-                self._action = "cancel"
-                self.reject()
-
-            def _remind_later(self):
-                self._action = "remind"
-                self.reject()
-
-            def _skip_version(self):
-                self._action = "skip"
-                self.reject()
-
-        dialog = UpdateDialog()
+        dialog = UpdateDialog(parent=self.parentWindow)
         dialog.activateWindow()
         dialog.raise_()
-        result = dialog.exec()
-
-        if result == QDialog.DialogCode.Accepted:
+        def on_accept():
             self._download_and_update(latest_release)
-        elif getattr(dialog, "_action", None) == "skip":
+            dialog.close()
+        def on_skip():
             settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, latest_tag)
-        elif getattr(dialog, "_action", None) == "remind":
-            # Save remind date (now + 1 day)
+            dialog.close()
+        def on_remind():
             remind_time = QDateTime.currentDateTime().addDays(1).toSecsSinceEpoch()
             settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
+            dialog.close()
+        dialog.accepted.connect(on_accept)
+        dialog.skip_update.connect(on_skip)
+        dialog.remind_later.connect(on_remind)
+        dialog.show()
 
     def _log_no_update(self):
         qInfo("No updates available for FF12 Plugin.")
