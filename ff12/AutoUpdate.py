@@ -19,10 +19,7 @@ from PyQt6.QtWidgets import (
     QTextBrowser,
     QDialogButtonBox,
 )
-from PyQt6.QtCore import (
-    Qt,
-    QDateTime
-)
+from PyQt6.QtCore import QDateTime
 import sys
 
 from .SettingsManager import settings_manager, SettingName
@@ -182,8 +179,6 @@ class FF12UpdateChecker:
                 self.reject()
 
         dialog = UpdateDialog()
-        dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
         dialog.activateWindow()
         dialog.raise_()
         result = dialog.exec()
