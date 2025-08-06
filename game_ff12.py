@@ -101,10 +101,35 @@ class FF12UpdateChecker:
         else:
             self._log_no_update()
 
-    def _show_update_dialog(self, release):
-        notes = release.get('body', 'No patch notes.')
-        tag = release.get('tag_name', '')
+    def _show_update_dialog(self, latest_release):
+        # Gather all releases newer than current_version
+        all_releases = self._get_releases()
+        include_prerelease = self.release_type != mobase.ReleaseType.FINAL
+        current_ver = self.current_version
+        changelogs = []
+        for rel in all_releases:
+            if not include_prerelease and rel.get('prerelease', False):
+                continue
+            tag = rel.get('tag_name', '')
+            ver = self._parse_version(tag)
+            if ver and self._is_newer(ver, current_ver):
+                body = rel.get('body', 'No patch notes.')
+                changelogs.append((ver, tag, body))
+        # Sort newest to oldest
+        changelogs.sort(reverse=True)
+        # Build markdown
+        notes_md = ""
+        for i, (ver, tag, body) in enumerate(changelogs):
+            notes_md += f"## Changes in {tag}\n{body}"
+            if i < len(changelogs) - 1:
+                notes_md += "\n***\n"
+            else:
+                notes_md += "\n"
+        # If no changelogs found, fallback to latest
+        if not notes_md:
+            notes_md = f"## Changes in {latest_release.get('tag_name', '')}\n{latest_release.get('body', 'No patch notes.')}\n"
         current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
+        latest_tag = latest_release.get('tag_name', '')
         app = QApplication.instance() or QApplication(sys.argv)
 
         class UpdateDialog(QDialog):
@@ -116,10 +141,10 @@ class FF12UpdateChecker:
                 infoLabel = QLabel(f"A new version of FF12 MO2 Plugin is available!")
                 infoLabel.setStyleSheet("font-weight: bold; font-size: 14pt;")
                 layout.addWidget(infoLabel)
-                versionLabel = QLabel(f"Current version: {current_version}\nNew version: {tag}\n\nPatch notes:")
+                versionLabel = QLabel(f"Current version: {current_version}\nNew version: {latest_tag}\n\nPatch notes:")
                 layout.addWidget(versionLabel)
                 browser = QTextBrowser()
-                browser.setMarkdown(notes)
+                browser.setMarkdown(notes_md)
                 browser.setOpenExternalLinks(True)
                 layout.addWidget(browser)
                 button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Yes | QDialogButtonBox.StandardButton.No)
@@ -134,7 +159,7 @@ class FF12UpdateChecker:
         dialog.raise_()
         result = dialog.exec()
         if result == QDialog.DialogCode.Accepted:
-            self._download_and_update(release)
+            self._download_and_update(latest_release)
 
     def _log_no_update(self):
         qInfo("No updates available for FF12 Plugin.")
