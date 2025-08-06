@@ -373,7 +373,7 @@ class FF12TZAGame(BasicGame):
             mobase.PluginSetting(
                 SettingName.DISABLE_AUTO_UPDATES,
                 (
-                    f"If true, disables automatic updates for the plugin."
+                    "If true, disables automatic updates for the plugin."
                 ),
                 default_value = False,
             ),
