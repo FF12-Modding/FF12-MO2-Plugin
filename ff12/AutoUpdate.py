@@ -198,49 +198,56 @@ class FF12UpdateChecker:
         qInfo("Skipped update for FF12 Plugin.")
 
     def _download_and_update(self, release):
-        asset = None
-        for a in release.get('assets', []):
-            if a.get('name', '').endswith('.zip'):
-                asset = a
-                break
+        asset = self._find_zip_asset(release)
         if not asset:
             self._show_error("No zip asset found in release.")
             return
-        url = asset['browser_download_url']
         tmpdir = tempfile.mkdtemp()
         zip_path = os.path.join(tmpdir, asset['name'])
         try:
-            with urllib.request.urlopen(url) as response, open(zip_path, 'wb') as out_file:
-                shutil.copyfileobj(response, out_file)
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(tmpdir)
-            # Find game_ff12.py in extracted files
-            new_script = None
-            ff12_update_dir = None
-            for root, dirs, files in os.walk(tmpdir):
-                if 'game_ff12.py' in files:
-                    new_script = os.path.join(root, 'game_ff12.py')
-                if 'ff12' in dirs:
-                    ff12_update_dir = os.path.join(root, 'ff12')
+            self._download_asset(asset['browser_download_url'], zip_path)
+            new_script, ff12_update_dir = self._extract_update_files(zip_path, tmpdir)
             if not new_script:
                 self._show_error("game_ff12.py not found in update package.")
                 return
-            # Replace main plugin file in parent directory
-            plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            main_plugin_path = os.path.join(plugin_dir, 'game_ff12.py')
-            shutil.copy2(new_script, main_plugin_path)
-            # Remove old ff12 directory in parent dir if it exists
-            ff12_plugin_dir = os.path.join(plugin_dir, 'ff12')
-            if os.path.isdir(ff12_plugin_dir):
-                shutil.rmtree(ff12_plugin_dir, ignore_errors=True)
-            # Copy ff12 directory from update if it exists
-            if ff12_update_dir and os.path.isdir(ff12_update_dir):
-                shutil.copytree(ff12_update_dir, ff12_plugin_dir)
+            self._replace_plugin_files(new_script, ff12_update_dir)
             self._show_restart_dialog()
         except Exception as e:
             self._show_error(f"Update failed: {e}")
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def _find_zip_asset(self, release):
+        for a in release.get('assets', []):
+            if a.get('name', '').endswith('.zip'):
+                return a
+        return None
+
+    def _download_asset(self, url, zip_path):
+        with urllib.request.urlopen(url) as response, open(zip_path, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+
+    def _extract_update_files(self, zip_path, tmpdir):
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(tmpdir)
+        new_script = None
+        ff12_update_dir = None
+        for root, dirs, files in os.walk(tmpdir):
+            if 'game_ff12.py' in files:
+                new_script = os.path.join(root, 'game_ff12.py')
+            if 'ff12' in dirs:
+                ff12_update_dir = os.path.join(root, 'ff12')
+        return new_script, ff12_update_dir
+
+    def _replace_plugin_files(self, new_script, ff12_update_dir):
+        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        main_plugin_path = os.path.join(plugin_dir, 'game_ff12.py')
+        shutil.copy2(new_script, main_plugin_path)
+        ff12_plugin_dir = os.path.join(plugin_dir, 'ff12')
+        if os.path.isdir(ff12_plugin_dir):
+            shutil.rmtree(ff12_plugin_dir, ignore_errors=True)
+        if ff12_update_dir and os.path.isdir(ff12_update_dir):
+            shutil.copytree(ff12_update_dir, ff12_plugin_dir)
 
     def _show_error(self, msg):
         app = QApplication.instance() or QApplication(sys.argv)
