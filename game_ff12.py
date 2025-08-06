@@ -104,6 +104,7 @@ class FF12UpdateChecker:
     def _show_update_dialog(self, release):
         notes = release.get('body', 'No patch notes.')
         tag = release.get('tag_name', '')
+        current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
         app = QApplication.instance() or QApplication(sys.argv)
 
         class UpdateDialog(QDialog):
@@ -112,8 +113,11 @@ class FF12UpdateChecker:
                 self.setWindowTitle("FF12 Plugin Update")
                 self.setMinimumSize(500, 400)
                 layout = QVBoxLayout(self)
-                label = QLabel(f"A new version ({tag}) of FF12 MO2 Plugin is available!\n\nPatch notes:")
-                layout.addWidget(label)
+                infoLabel = QLabel(f"A new version of FF12 MO2 Plugin is available!")
+                infoLabel.setStyleSheet("font-weight: bold; font-size: 14pt;")
+                layout.addWidget(infoLabel)
+                versionLabel = QLabel(f"Current version: {current_version}\nNew version: {tag}\n\nPatch notes:")
+                layout.addWidget(versionLabel)
                 browser = QTextBrowser()
                 browser.setMarkdown(notes)
                 browser.setOpenExternalLinks(True)
