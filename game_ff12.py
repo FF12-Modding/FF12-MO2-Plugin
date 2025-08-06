@@ -49,6 +49,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QTextBrowser,
     QDialogButtonBox,
+    QMainWindow
 )
 from PyQt6.QtCore import Qt
 import sys
@@ -336,18 +337,11 @@ class FF12TZAGame(BasicGame):
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
         organizer.onPluginSettingChanged(self._on_plugin_setting_changed_callback)
+        organizer.onUserInterfaceInitialized(self._on_user_interface_initialized_callback)
 
         auto_steam_id = settings_manager().get_setting(SettingName.AUTO_STEAM_ID)
         if auto_steam_id is True:
             self._set_last_logged_steam_id()
-
-        if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
-            update_checker = FF12UpdateChecker(
-                "FF12-Modding", "FF12-MO2-Plugin",
-                VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
-                VERSION_RELEASE_TYPE
-            )
-            update_checker.check_for_update()
     
         return True
 
@@ -503,3 +497,15 @@ class FF12TZAGame(BasicGame):
             qInfo(f"Updated Steam ID from '{cur_steam_id}' to '{last_steam_id}'.")
         else:
             qInfo(f"Set Steam ID to '{last_steam_id}'.")
+    
+    def _on_user_interface_initialized_callback(
+            self,
+            window: QMainWindow
+    ):
+        if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
+            update_checker = FF12UpdateChecker(
+                "FF12-Modding", "FF12-MO2-Plugin",
+                VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+                VERSION_RELEASE_TYPE
+            )
+            update_checker.check_for_update()
