@@ -5,6 +5,7 @@ import json
 import tempfile
 import zipfile
 import os
+from datetime import datetime
 from PyQt6.QtCore import (
     QDateTime,
     qInfo,
@@ -87,6 +88,22 @@ class FF12UpdateChecker:
         else:
             self._log_no_update()
 
+    def _get_date_time_from_iso(self, date_iso):
+        if date_iso:
+            try:
+                dt = datetime.fromisoformat(date_iso.replace('Z', '+00:00'))
+                return dt.strftime('%Y-%m-%d %H:%M UTC')
+            except Exception:
+                return date_iso
+    
+    def _get_date_from_iso(self, date_iso):
+        if date_iso:
+            try:
+                dt = datetime.fromisoformat(date_iso.replace('Z', '+00:00'))
+                return dt.strftime('%Y-%m-%d')
+            except Exception:
+                return date_iso
+
     def _show_update_dialog(self, latest_release):
         # Gather all releases newer than current_version
         all_releases = self._get_releases()
@@ -106,16 +123,19 @@ class FF12UpdateChecker:
         # Build markdown
         notes_md = ""
         for i, (ver, tag, body) in enumerate(changelogs):
-            notes_md += f"## Changes in {tag} []()([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
+            notes_md += f"## Changes in {tag} []()  Date: {self._get_date_from_iso(rel.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
             if i < len(changelogs) - 1:
                 notes_md += "\n***\n"
             else:
                 notes_md += "\n"
         # If no changelogs found, fallback to latest
         if not notes_md:
-            notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
+            notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {self._get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
         current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
         latest_tag = latest_release.get('tag_name', '')
+
+        latest_date_str = self._get_date_time_from_iso(latest_release.get('published_at', ''))
+
         app = QApplication.instance() or QApplication(sys.argv)
 
         class UpdateDialog(QDialog):
@@ -127,7 +147,7 @@ class FF12UpdateChecker:
                 infoLabel = QLabel(f"A new version of FF12 MO2 Plugin is available!")
                 infoLabel.setStyleSheet("font-weight: bold; font-size: 14pt;")
                 layout.addWidget(infoLabel)
-                versionLabel = QLabel(f"Current version: {current_version}\nNew version: {latest_tag}\n\nPatch notes:")
+                versionLabel = QLabel(f"Current version: {current_version}\nNew version: {latest_tag} ({latest_date_str})\n\nPatch notes:")
                 layout.addWidget(versionLabel)
                 browser = QTextBrowser()
                 browser.setMarkdown(notes_md)
