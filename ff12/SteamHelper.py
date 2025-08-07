@@ -6,7 +6,7 @@ def get_last_logged_steam_id() -> str | None:
     Retrieve the Steam ID of the most recently logged-in user from Steam's loginusers.vdf.
     """
     steam_path = find_steam_path()
-    if not steam_path:
+    if steam_path is None:
         return None
 
     loginusers_path = steam_path / "config" / "loginusers.vdf"
