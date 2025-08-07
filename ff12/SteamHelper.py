@@ -19,7 +19,6 @@ def get_last_logged_steam_id() -> str | None:
             if info.get("MostRecent") == "1":
                 return steam_id
 
-        if users:
-            return next(iter(users))
+        return next(iter(users), None)
     except Exception:
         return None
