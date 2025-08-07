@@ -4,6 +4,7 @@ VERSION_MINOR = 4
 VERSION_PATCH = 0
 VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 import shutil
+import os
 
 from collections.abc import Mapping
 from pathlib import Path
@@ -368,7 +369,8 @@ class FF12TZAGame(BasicGame):
                 window,
                 update_targets=["game_ff12.py", "ff12"],
                 remove_targets=["ff12"],
-                skip_version=settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION)
+                skip_version=settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION),
+                plugin_dir=os.path.dirname(__file__),
             )
             # We're using non-modal dialogs, so we have to use callbacks to clear settings
             def on_update_installed():

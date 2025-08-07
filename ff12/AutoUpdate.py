@@ -38,7 +38,8 @@ class UpdateChecker(QObject):
     version_skipped = pyqtSignal(str)
     def __init__(self, name, repo_owner, repo_name, major, minor, patch, release_type,
                  parent: QMainWindow = None,
-                 update_targets=None, remove_targets=None, skip_version=None):
+                 update_targets=None, remove_targets=None, skip_version=None,
+                 plugin_dir=None):
         super().__init__()
         self.name = name
         self.repo_owner = repo_owner
@@ -49,6 +50,7 @@ class UpdateChecker(QObject):
         self.update_targets = update_targets
         self.remove_targets = remove_targets
         self.skip_version = skip_version
+        self.plugin_dir = plugin_dir
 
     def _get_releases(self):
         url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
@@ -254,7 +256,7 @@ class UpdateChecker(QObject):
 
     def _backup_targets(self, backup_dir):
         os.makedirs(backup_dir, exist_ok=True)
-        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        plugin_dir = self.plugin_dir
         unique_targets = set((self.update_targets or []) + (self.remove_targets or []))
         for target in unique_targets:
             src_path = os.path.join(plugin_dir, target)
@@ -267,7 +269,7 @@ class UpdateChecker(QObject):
                     shutil.copy2(src_path, dst_path)
 
     def _restore_targets(self, backup_dir):
-        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        plugin_dir = self.plugin_dir
         for root, dirs, files in os.walk(backup_dir):
             rel_root = os.path.relpath(root, backup_dir)
             dest_root = os.path.join(plugin_dir, rel_root) if rel_root != '.' else plugin_dir
@@ -284,7 +286,7 @@ class UpdateChecker(QObject):
                 shutil.copy2(src_file, dest_file)
 
     def _open_dirs_for_manual_restore(self, backup_dir):
-        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        plugin_dir = self.plugin_dir
         try:
             os.startfile(plugin_dir)
             os.startfile(backup_dir)
@@ -315,7 +317,7 @@ class UpdateChecker(QObject):
         return found_targets
 
     def _replace_plugin_files(self, found_targets) -> bool:
-        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        plugin_dir = self.plugin_dir
         changes_done = False
         try:
             os.makedirs(plugin_dir, exist_ok=True)
