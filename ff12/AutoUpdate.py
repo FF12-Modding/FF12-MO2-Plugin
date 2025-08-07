@@ -28,20 +28,27 @@ from PyQt6.QtCore import (
 )
 import sys
 
-from .SettingsManager import settings_manager, SettingName
 from .DateHelper import get_date_from_iso, get_date_time_from_iso
 
 from PyQt6.QtCore import QObject
 
-class FF12UpdateChecker(QObject):
+class UpdateChecker(QObject):
     update_installed = pyqtSignal()
-    def __init__(self, repo_owner, repo_name, major, minor, patch, release_type, parent: QMainWindow = None):
+    update_remind = pyqtSignal(int)
+    version_skipped = pyqtSignal(str)
+    def __init__(self, name, repo_owner, repo_name, major, minor, patch, release_type,
+                 parent: QMainWindow = None,
+                 update_targets=None, remove_targets=None, skip_version=None):
         super().__init__()
+        self.name = name
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.current_version = (major, minor, patch)
         self.release_type = release_type
         self.parentWindow = parent
+        self.update_targets = update_targets
+        self.remove_targets = remove_targets
+        self.skip_version = skip_version
 
     def _get_releases(self):
         url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
@@ -83,7 +90,7 @@ class FF12UpdateChecker(QObject):
             return False
         return v1 > v2
 
-    def check_for_update(self):
+    def check_for_update(self, skip_version=None):
         # GitHub API has 60 requests per hour limit for unauthenticated requests.
         # So let's not make a big fuss about it and handle errors gracefully.
         try:
@@ -93,7 +100,7 @@ class FF12UpdateChecker(QObject):
             return
         include_prerelease = self.release_type != mobase.ReleaseType.FINAL
         latest = None
-        skip_version = settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION)
+        skip_version_val = skip_version if skip_version is not None else self.skip_version
 
         for rel in releases:
             if not include_prerelease and rel.get('prerelease', False):
@@ -106,7 +113,7 @@ class FF12UpdateChecker(QObject):
 
         if latest:
             latest_ver = self._parse_version(latest.get('tag_name'))
-            skip_ver = self._parse_version(skip_version)
+            skip_ver = self._parse_version(skip_version_val)
             if not self._is_newer(latest_ver, skip_ver):
                 self._log_skip_update()
             else:
@@ -144,15 +151,16 @@ class FF12UpdateChecker(QObject):
             return "## Error collecting changelogs\nAn error occurred while fetching the changelogs. Please check the log for details."
 
     def _create_update_dialog(self, notes_md, current_version, latest_tag, latest_date_str):
+        pluginName = self.name or "Plugin"
         class UpdateDialog(QDialog):
             skip_update = pyqtSignal()
             remind_later = pyqtSignal()
             def __init__(self, parent=None):
                 super().__init__(parent)
-                self.setWindowTitle("FF12 Plugin Update")
+                self.setWindowTitle(f"{pluginName} Update Available")
                 self.setMinimumSize(500, 400)
                 layout = QVBoxLayout(self)
-                infoLabel = QLabel(f"A new version of FF12 MO2 Plugin is available!")
+                infoLabel = QLabel(f"A new version of {pluginName} is available!")
                 infoLabel.setStyleSheet("font-weight: bold; font-size: 14pt;")
                 layout.addWidget(infoLabel)
                 versionLabel = QLabel(f"Current version: {current_version}\nNew version: {latest_tag} ({latest_date_str})\n\nPatch notes:")
@@ -178,11 +186,11 @@ class FF12UpdateChecker(QObject):
             self._download_and_update(latest_release)
             dialog.close()
         def on_skip():
-            settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, latest_tag)
+            self.version_skipped.emit(latest_tag)
             dialog.close()
         def on_remind():
             remind_time = QDateTime.currentDateTime().addDays(1).toSecsSinceEpoch()
-            settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
+            self.update_remind.emit(remind_time)
             dialog.close()
         dialog.accepted.connect(on_accept)
         dialog.skip_update.connect(on_skip)
@@ -202,10 +210,10 @@ class FF12UpdateChecker(QObject):
         dialog.show()
 
     def _log_no_update(self):
-        qInfo("No updates available for FF12 Plugin.")
-    
+        qInfo(f"No updates available for {self.name}.")
+
     def _log_skip_update(self):
-        qInfo("Skipped update for FF12 Plugin.")
+        qInfo(f"Skipped update for {self.name}.")
 
     def _download_and_update(self, release):
         asset = self._find_zip_asset(release)
@@ -216,11 +224,12 @@ class FF12UpdateChecker(QObject):
         zip_path = os.path.join(tmpdir, asset['name'])
         try:
             self._download_asset(asset['browser_download_url'], zip_path)
-            new_script, ff12_update_dir = self._extract_update_files(zip_path, tmpdir)
-            if not new_script:
-                self._show_error("game_ff12.py not found in update package.")
+            found_targets = self._extract_update_files(zip_path, tmpdir)
+            missing = [t for t in self.update_targets if t not in found_targets]
+            if missing:
+                self._show_error(f"Update package missing: {', '.join(missing)}")
                 return
-            self._replace_plugin_files(new_script, ff12_update_dir)
+            self._replace_plugin_files(found_targets)
             self._show_restart_dialog()
             self.update_installed.emit()
         except Exception as e:
@@ -241,29 +250,36 @@ class FF12UpdateChecker(QObject):
     def _extract_update_files(self, zip_path, tmpdir):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(tmpdir)
-        new_script = None
-        ff12_update_dir = None
+        found_targets = {}
         for root, dirs, files in os.walk(tmpdir):
-            if 'game_ff12.py' in files:
-                new_script = os.path.join(root, 'game_ff12.py')
-            if 'ff12' in dirs:
-                ff12_update_dir = os.path.join(root, 'ff12')
-        return new_script, ff12_update_dir
+            for target in self.update_targets:
+                if target in files:
+                    found_targets[target] = os.path.join(root, target)
+                if target in dirs:
+                    found_targets[target] = os.path.join(root, target)
+        return found_targets
 
-    def _replace_plugin_files(self, new_script, ff12_update_dir):
+    def _replace_plugin_files(self, found_targets):
         plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        main_plugin_path = os.path.join(plugin_dir, 'game_ff12.py')
-        shutil.copy2(new_script, main_plugin_path)
-        ff12_plugin_dir = os.path.join(plugin_dir, 'ff12')
-        if os.path.isdir(ff12_plugin_dir):
-            shutil.rmtree(ff12_plugin_dir, ignore_errors=True)
-        if ff12_update_dir and os.path.isdir(ff12_update_dir):
-            shutil.copytree(ff12_update_dir, ff12_plugin_dir)
+        # Remove targets first
+        for target in self.remove_targets:
+            target_path = os.path.join(plugin_dir, target)
+            if os.path.isdir(target_path):
+                shutil.rmtree(target_path, ignore_errors=True)
+            elif os.path.isfile(target_path):
+                os.remove(target_path)
+        # Copy new/updated targets
+        for target, src_path in found_targets.items():
+            dest_path = os.path.join(plugin_dir, target)
+            if os.path.isdir(src_path):
+                shutil.copytree(src_path, dest_path)
+            elif os.path.isfile(src_path):
+                shutil.copy2(src_path, dest_path)
 
     def _show_error(self, msg):
         app = QApplication.instance() or QApplication(sys.argv)
-        QMessageBox.critical(None, "FF12 Plugin Update", msg)
+        QMessageBox.critical(None, f"{self.name} Update", msg)
 
     def _show_restart_dialog(self):
         app = QApplication.instance() or QApplication(sys.argv)
-        QMessageBox.information(None, "FF12 Plugin Update", "Update complete! Please restart Mod Organizer 2 for changes to take effect.")
+        QMessageBox.information(None, f"{self.name} Update", "Update complete! Please restart Mod Organizer 2 for changes to take effect.")

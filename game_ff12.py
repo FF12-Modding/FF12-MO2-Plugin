@@ -36,7 +36,7 @@ from ..basic_game import BasicGame
 from ..steam_utils import find_steam_path
 import vdf
 
-from .ff12.AutoUpdate import FF12UpdateChecker
+from .ff12.AutoUpdate import UpdateChecker
 from .ff12.SettingsManager import SettingsManager, settings_manager, SettingName
 
 class FF12ModDataChecker(BasicModDataChecker):
@@ -360,17 +360,28 @@ class FF12TZAGame(BasicGame):
             if remind_time and now_secs is not None and remind_time > now_secs:
                 return
 
-            update_checker = FF12UpdateChecker(
+            update_checker = UpdateChecker(
+                "FF12 Plugin",
                 "FF12-Modding", "FF12-MO2-Plugin",
                 VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
                 VERSION_RELEASE_TYPE,
-                window
+                window,
+                update_targets=["game_ff12.py", "ff12"],
+                remove_targets=["ff12"],
+                skip_version=settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION)
             )
             # We're using non-modal dialogs, so we have to use callbacks to clear settings
             def on_update_installed():
                 settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, "v0.0.0")
                 settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, 0)
+            
+            def on_version_skipped(version: str):
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, version)
+            
+            def on_update_remind(remind_time: int):
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
 
             update_checker.update_installed.connect(on_update_installed)
+            update_checker.version_skipped.connect(on_version_skipped)
+            update_checker.update_remind.connect(on_update_remind)
             update_checker.check_for_update()
-    
