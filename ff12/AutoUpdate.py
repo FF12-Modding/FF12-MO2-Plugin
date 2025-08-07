@@ -29,6 +29,7 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 import sys
+import re
 
 from .DateHelper import get_date_from_iso, get_date_time_from_iso
 
@@ -50,6 +51,7 @@ class UpdateChecker(QObject):
     update_installed = pyqtSignal()
     update_remind = pyqtSignal(int)
     version_skipped = pyqtSignal(str)
+
     def __init__(self, name: str, repo_owner: str, repo_name: str, major: int, minor: int, patch: int, release_type: int,
                  parent: QMainWindow = None,
                  update_targets: list[str]=None, remove_targets: list[str]=None, skip_version: str=None,
@@ -187,6 +189,13 @@ class UpdateChecker(QObject):
         else:
             self._log_no_update()
 
+    _pr_pattern = re.compile(r'(?<![\w/])#(\d+)')
+    def _make_pr_links(self, text: str) -> str:
+        return self._pr_pattern.sub(
+            lambda m: f"[#{m.group(1)}](https://github.com/{self.repo_owner}/{self.repo_name}/pull/{m.group(1)})",
+            text
+        )
+
     def _collect_changelogs(self, latest_release):
         try:
             all_releases = self._get_releases()
@@ -200,6 +209,7 @@ class UpdateChecker(QObject):
                 ver = self._parse_version(tag)
                 if ver and self._is_newer(ver, current_ver):
                     body = rel.get('body', 'No patch notes.')
+                    body = self._make_pr_links(body)
                     changelogs.append((ver, tag, body, rel.get('published_at', '')))
             changelogs.sort(reverse=True)
             notes_md = ""
@@ -210,7 +220,9 @@ class UpdateChecker(QObject):
                 else:
                     notes_md += "\n"
             if not notes_md:
-                notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
+                body = latest_release.get('body', 'No patch notes.')
+                body = self._make_pr_links(body)
+                notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{body}\n"
             return notes_md
         except Exception as e:
             qWarning(f"Failed to collect changelogs: {e}")
