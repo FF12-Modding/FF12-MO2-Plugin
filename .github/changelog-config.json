@@ -12,6 +12,14 @@
       "labels": ["bug", "fix"]
     },
     {
+      "title": "📚 Documentation",
+      "labels": ["documentation"]
+    },
+    {
+      "title": "🔧 Code Refactoring",
+      "labels": ["refactor"]
+    },
+    {
       "title": "🧰 Maintenance",
       "labels": ["chore", "maintenance"]
     },
