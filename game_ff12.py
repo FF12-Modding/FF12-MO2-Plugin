@@ -6,7 +6,6 @@ VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 import shutil
 import os
 
-from collections.abc import Mapping
 from pathlib import Path
 
 from PyQt6.QtCore import (
@@ -20,12 +19,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtWidgets import QMainWindow
 
 from ..basic_features import BasicLocalSavegames
-from ..basic_features.basic_save_game_info import (
-    BasicGameSaveGame,
-    BasicGameSaveGameInfo,
-    format_date,
-)
-
+from ..basic_features.basic_save_game_info import BasicGameSaveGameInfo
 from ..basic_game import BasicGame
 
 from ..steam_utils import find_steam_path
@@ -33,42 +27,9 @@ import vdf
 
 from .ff12.AutoUpdate import UpdateChecker
 from .ff12.ModDataChecker import FF12ModDataChecker
+from .ff12.SaveGame import FF12SaveGame, getSaveMetadata
 from .ff12.SettingsManager import SettingsManager, settings_manager, SettingName
 
-class FF12SaveGame(BasicGameSaveGame):
-    def __init__(self, filepath: Path):
-        super().__init__(filepath)
-        f_stat = self._filepath.stat()
-        self._size = f_stat.st_size
-        self._created = f_stat.st_birthtime
-        self._modified = f_stat.st_mtime
-
-    def getName(self) -> str:
-        return f"Slot {self.getSlot()}"
-
-    def getSaveGroupIdentifier(self) -> str:
-        return "Default"
-
-    def getSlot(self) -> str:
-        return int(self._filepath.stem[6:9])
-
-    def getSize(self) -> int:
-        return self._size
-
-    def getBirthTime(self) -> QDateTime:
-        return QDateTime.fromSecsSinceEpoch(int(self._created))
-
-    def getCreationTime(self) -> QDateTime:
-        return QDateTime.fromSecsSinceEpoch(int(self._modified))
-
-def getSaveMetadata(savepath: Path, save: mobase.ISaveGame) -> Mapping[str, str]:
-    assert isinstance(save, FF12SaveGame)
-    return {
-        "Slot": save.getSlot(),
-        "Size": f"{save.getSize() / 1024:.2f} KB",
-        "Created At": format_date(save.getBirthTime()),
-        "Last Saved": format_date(save.getCreationTime())
-    }
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
     Author = "ffgriever & Xeavin"
