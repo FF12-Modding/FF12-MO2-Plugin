@@ -5,7 +5,9 @@ import json
 import tempfile
 import zipfile
 import os
+import socket
 from datetime import datetime
+
 from PyQt6.QtCore import (
     QDateTime,
     qInfo,
@@ -49,6 +51,8 @@ class FF12UpdateChecker:
                 raise Exception("GitHub API rate limit exceeded (403). Please try again later.")
             else:
                 raise Exception(f"HTTP error occurred: {e.code} {e.reason}")
+        except socket.timeout:
+            raise Exception("Connection timed out while trying to fetch releases.")
 
         releases = json.loads(data)
         return releases
