@@ -51,6 +51,8 @@ class FF12UpdateChecker:
                 raise Exception("GitHub API rate limit exceeded (403). Please try again later.")
             else:
                 raise Exception(f"HTTP error occurred: {e.code} {e.reason}")
+        except urllib.error.URLError as e:
+            raise Exception(f"Network error: {e.reason}. Server unavailable or internet connection issue.")
         except socket.timeout:
             raise Exception("Connection timed out while trying to fetch releases.")
 
