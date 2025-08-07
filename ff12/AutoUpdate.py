@@ -356,7 +356,6 @@ class UpdateChecker(QObject):
             os.startfile(backup_dir)
         except Exception:
             pass
-        self._show_error(f"Manual restore required. Please copy files from backup: {backup_dir} to {plugin_dir}.")
 
     def _find_zip_asset(self, release):
         for a in release.get('assets', []):
