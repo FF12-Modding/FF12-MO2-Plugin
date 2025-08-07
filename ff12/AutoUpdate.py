@@ -6,7 +6,6 @@ import tempfile
 import zipfile
 import os
 import socket
-from datetime import datetime
 
 from PyQt6.QtCore import (
     QDateTime,
@@ -30,6 +29,7 @@ from PyQt6.QtCore import (
 import sys
 
 from .SettingsManager import settings_manager, SettingName
+from .DateHelper import get_date_from_iso, get_date_time_from_iso
 
 class FF12UpdateChecker:
     def __init__(self, repo_owner, repo_name, major, minor, patch, release_type, parent: QMainWindow = None):
@@ -110,22 +110,6 @@ class FF12UpdateChecker:
         else:
             self._log_no_update()
 
-    def _get_date_time_from_iso(self, date_iso):
-        if date_iso:
-            try:
-                dt = datetime.fromisoformat(date_iso.replace('Z', '+00:00'))
-                return dt.strftime('%Y-%m-%d %H:%M UTC')
-            except Exception:
-                return date_iso
-    
-    def _get_date_from_iso(self, date_iso):
-        if date_iso:
-            try:
-                dt = datetime.fromisoformat(date_iso.replace('Z', '+00:00'))
-                return dt.strftime('%Y-%m-%d')
-            except Exception:
-                return date_iso
-
     def _collect_changelogs(self, latest_release):
         try:
             all_releases = self._get_releases()
@@ -143,13 +127,13 @@ class FF12UpdateChecker:
             changelogs.sort(reverse=True)
             notes_md = ""
             for i, (ver, tag, body, published_at) in enumerate(changelogs):
-                notes_md += f"## Changes in {tag} []()  Date: {self._get_date_from_iso(published_at)} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
+                notes_md += f"## Changes in {tag} []()  Date: {get_date_from_iso(published_at)} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{tag}))\n{body}"
                 if i < len(changelogs) - 1:
                     notes_md += "\n***\n"
                 else:
                     notes_md += "\n"
             if not notes_md:
-                notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {self._get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
+                notes_md = f"## Changes in {latest_release.get('tag_name', '')} []()  Date: {get_date_from_iso(latest_release.get('published_at', ''))} ([commits](https://github.com/{self.repo_owner}/{self.repo_name}/commits/{latest_release.get('tag_name', '')}))\n{latest_release.get('body', 'No patch notes.')}\n"
             return notes_md
         except Exception as e:
             qWarning(f"Failed to collect changelogs: {e}")
@@ -204,7 +188,7 @@ class FF12UpdateChecker:
         notes_md = self._collect_changelogs(latest_release)
         current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
         latest_tag = latest_release.get('tag_name', '')
-        latest_date_str = self._get_date_time_from_iso(latest_release.get('published_at', ''))
+        latest_date_str = get_date_time_from_iso(latest_release.get('published_at', ''))
         app = QApplication.instance() or QApplication(sys.argv)
         UpdateDialog = self._create_update_dialog(notes_md, current_version, latest_tag, latest_date_str)
         dialog = UpdateDialog(parent=self.parentWindow)
