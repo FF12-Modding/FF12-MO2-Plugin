@@ -383,7 +383,7 @@ class FF12TZAGame(BasicGame):
             def on_update_remind(remind_time: int):
                 settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
 
-            update_checker.update_installed.connect(on_update_installed)
-            update_checker.version_skipped.connect(on_version_skipped)
-            update_checker.update_remind.connect(on_update_remind)
+            update_checker.on_update_installed(on_update_installed)
+            update_checker.on_version_skipped(on_version_skipped)
+            update_checker.on_update_remind(on_update_remind)
             update_checker.check_for_update()

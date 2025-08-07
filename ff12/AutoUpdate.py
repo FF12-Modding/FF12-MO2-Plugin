@@ -6,6 +6,7 @@ import tempfile
 import zipfile
 import os
 import socket
+from typing import Callable
 
 from PyQt6.QtCore import (
     QDateTime,
@@ -51,6 +52,33 @@ class UpdateChecker(QObject):
         self.remove_targets = remove_targets
         self.skip_version = skip_version
         self.plugin_dir = plugin_dir
+    
+    def on_update_installed(self, callback: Callable[[], None]):
+        """
+        Registers a callback function to be invoked when an update is successfully installed.
+
+        Args:
+            callback (Callable[[], None]): The function to be called when an update is successfully installed.
+        """
+        self.update_installed.connect(callback)
+    
+    def on_update_remind(self, callback: Callable[[int], None]):
+        """
+        Registers a callback to be invoked when the user opts to be reminded later about an available update.
+
+        Args:
+            callback (Callable[[int], None]): The function to be called when the a remind me later button is clicked.
+        """
+        self.update_remind.connect(callback)
+
+    def on_version_skipped(self, callback: Callable[[str], None]):
+        """
+        Registers a callback to be invoked when the user skips the current version.
+
+        Args:
+            callback (Callable[[str], None]): The function to be called when a skip version button is clicked.
+        """
+        self.version_skipped.connect(callback)
 
     def _get_releases(self):
         url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
