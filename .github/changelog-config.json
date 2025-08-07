@@ -1,6 +1,6 @@
 {
-  "template": "# Changelog\n\n## Changes in ${{RELEASE_TAG}}\n\n${{CHANGELOG}}\n",
-  "pr_template": "- ${{TITLE}} (#${{NUMBER}})\n  ${{COMMITS}}\n",
+  "template": "${{CHANGELOG}}\n",
+  "pr_template": "- ${{TITLE}} (#${{NUMBER}})\n  Commits: ${{COMMITS}}\n",
   "commit_template": "    - ${{COMMIT_MESSAGE}} [${{COMMIT_SHA}}](${{COMMIT_URL}})",
   "categories": [
     {
@@ -10,6 +10,14 @@
     {
       "title": "🐛 Bug Fixes",
       "labels": ["bug", "fix"]
+    },
+    {
+      "title": "📚 Documentation",
+      "labels": ["documentation"]
+    },
+    {
+      "title": "🔧 Code Refactoring",
+      "labels": ["refactor"]
     },
     {
       "title": "🧰 Maintenance",
