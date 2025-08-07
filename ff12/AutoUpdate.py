@@ -365,8 +365,20 @@ class UpdateChecker(QObject):
         return None
 
     def _download_asset(self, url, zip_path):
-        with urllib.request.urlopen(url) as response, open(zip_path, 'wb') as out_file:
-            shutil.copyfileobj(response, out_file)
+        try:
+            with urllib.request.urlopen(url, timeout=10) as response, open(zip_path, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise Exception(f"Download URL not found (404): {url}")
+            elif e.code == 403:
+                raise Exception("Rate limit exceeded or access denied. Please try again later.")
+            else:
+                raise Exception(f"HTTP error occurred while downloading asset: {e.code} {e.reason}")
+        except urllib.error.URLError as e:
+            raise Exception(f"Network error while downloading asset: {e.reason}. Server unavailable or internet connection issue.")
+        except socket.timeout:
+            raise Exception("Connection timed out while trying to download asset.")
 
     def _extract_update_files(self, zip_path, tmpdir):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
