@@ -222,6 +222,7 @@ class UpdateChecker(QObject):
             return
         tmpdir = tempfile.mkdtemp()
         zip_path = os.path.join(tmpdir, asset['name'])
+        backup_dir = os.path.join(tmpdir, "backup")
         try:
             self._download_asset(asset['browser_download_url'], zip_path)
             found_targets = self._extract_update_files(zip_path, tmpdir)
@@ -229,13 +230,67 @@ class UpdateChecker(QObject):
             if missing:
                 self._show_error(f"Update package missing: {', '.join(missing)}")
                 return
-            self._replace_plugin_files(found_targets)
+            self._backup_targets(backup_dir)
+            try:
+                if not self._replace_plugin_files(found_targets):
+                    self._show_error("Failed to replace plugin files, but no changes were made.")
+                    return
+            except Exception as e:
+                # Attempt restore if replacement fails
+                try:
+                    self._restore_targets(backup_dir)
+                except Exception as restore_exc:
+                    self._show_error(f"Update failed: {e}\nRestore also failed: {restore_exc}\nPlease copy files manually.")
+                    self._open_dirs_for_manual_restore(backup_dir)
+                    return
+                self._show_error(f"Update failed: {e}\nChanges have been reverted.")
+                return
             self._show_restart_dialog()
             self.update_installed.emit()
         except Exception as e:
             self._show_error(f"Update failed: {e}")
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def _backup_targets(self, backup_dir):
+        os.makedirs(backup_dir, exist_ok=True)
+        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        unique_targets = set((self.update_targets or []) + (self.remove_targets or []))
+        for target in unique_targets:
+            src_path = os.path.join(plugin_dir, target)
+            dst_path = os.path.join(backup_dir, target)
+            if os.path.exists(src_path):
+                if os.path.isdir(src_path):
+                    shutil.copytree(src_path, dst_path)
+                else:
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    shutil.copy2(src_path, dst_path)
+
+    def _restore_targets(self, backup_dir):
+        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for root, dirs, files in os.walk(backup_dir):
+            rel_root = os.path.relpath(root, backup_dir)
+            dest_root = os.path.join(plugin_dir, rel_root) if rel_root != '.' else plugin_dir
+            for d in dirs:
+                src_dir = os.path.join(root, d)
+                dest_dir = os.path.join(dest_root, d)
+                if os.path.exists(dest_dir):
+                    shutil.rmtree(dest_dir, ignore_errors=True)
+                shutil.copytree(src_dir, dest_dir)
+            for f in files:
+                src_file = os.path.join(root, f)
+                dest_file = os.path.join(dest_root, f)
+                os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+                shutil.copy2(src_file, dest_file)
+
+    def _open_dirs_for_manual_restore(self, backup_dir):
+        plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        try:
+            os.startfile(plugin_dir)
+            os.startfile(backup_dir)
+        except Exception:
+            pass
+        self._show_error(f"Manual restore required. Please copy files from backup: {backup_dir} to {plugin_dir}.")
 
     def _find_zip_asset(self, release):
         for a in release.get('assets', []):
@@ -259,22 +314,35 @@ class UpdateChecker(QObject):
                     found_targets[target] = os.path.join(root, target)
         return found_targets
 
-    def _replace_plugin_files(self, found_targets):
+    def _replace_plugin_files(self, found_targets) -> bool:
         plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        # Remove targets first
-        for target in self.remove_targets:
-            target_path = os.path.join(plugin_dir, target)
-            if os.path.isdir(target_path):
-                shutil.rmtree(target_path, ignore_errors=True)
-            elif os.path.isfile(target_path):
-                os.remove(target_path)
-        # Copy new/updated targets
-        for target, src_path in found_targets.items():
-            dest_path = os.path.join(plugin_dir, target)
-            if os.path.isdir(src_path):
-                shutil.copytree(src_path, dest_path)
-            elif os.path.isfile(src_path):
-                shutil.copy2(src_path, dest_path)
+        changes_done = False
+        try:
+            os.makedirs(plugin_dir, exist_ok=True)
+            # Remove targets first
+            for target in self.remove_targets:
+                target_path = os.path.join(plugin_dir, target)
+                if os.path.isdir(target_path):
+                    shutil.rmtree(target_path)
+                    changes_done = True
+                elif os.path.isfile(target_path):
+                    os.remove(target_path)
+                    changes_done = True
+            # Copy new/updated targets
+            for target, src_path in found_targets.items():
+                dest_path = os.path.join(plugin_dir, target)
+                if os.path.isdir(src_path):
+                    shutil.copytree(src_path, dest_path)
+                    changes_done = True
+                elif os.path.isfile(src_path):
+                    shutil.copy2(src_path, dest_path)
+                    changes_done = True
+        except Exception as e:
+            if changes_done:
+                raise
+            else:
+                return False
+        return True
 
     def _show_error(self, msg):
         app = QApplication.instance() or QApplication(sys.argv)
