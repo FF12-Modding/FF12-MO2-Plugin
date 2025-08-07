@@ -8,10 +8,7 @@ from ...basic_features import (
 from ...basic_features.utils import is_directory
 
 class FF12ModDataChecker(BasicModDataChecker):
-    def __init__(self, organizer: mobase.IOrganizer, plugin_name: str):
-        self._organizer = organizer
-        self._plugin_name = plugin_name
-
+    def __init__(self):
         super().__init__(
             GlobPatterns(
                 unfold=['*'],

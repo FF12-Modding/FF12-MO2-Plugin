@@ -87,7 +87,7 @@ class FF12TZAGame(BasicGame):
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
         SettingsManager(organizer, self.name())
-        self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
+        self._register_feature(FF12ModDataChecker())
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
         organizer.onPluginSettingChanged(self._on_plugin_setting_changed_callback)
