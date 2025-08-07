@@ -344,7 +344,7 @@ class FF12TZAGame(BasicGame):
             qInfo(f"Updated Steam ID from '{cur_steam_id}' to '{last_steam_id}'.")
         else:
             qInfo(f"Set Steam ID to '{last_steam_id}'.")
-    
+
     def _on_user_interface_initialized_callback(
             self,
             window: QMainWindow
@@ -352,7 +352,7 @@ class FF12TZAGame(BasicGame):
         current_game = self._organizer.managedGame()
         if current_game is not self:
             return
-        
+
         if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
 
             remind_time = settings_manager().get_setting(SettingName.SKIP_UPDATE_UNTIL_DATE)
@@ -376,10 +376,10 @@ class FF12TZAGame(BasicGame):
             def on_update_installed():
                 settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, "v0.0.0")
                 settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, 0)
-            
+
             def on_version_skipped(version: str):
                 settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, version)
-            
+
             def on_update_remind(remind_time: int):
                 settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
 

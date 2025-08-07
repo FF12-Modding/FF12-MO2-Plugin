@@ -37,13 +37,13 @@ from PyQt6.QtCore import QObject
 class UpdateChecker(QObject):
     """
     UpdateChecker is a QObject-based class that manages update checking, notification, and installation for a plugin or application using GitHub releases.
-    
+
     Methods:
         on_update_installed(callback): Registers a callback for when an update is installed.
         on_update_remind(callback): Registers a callback for when the user opts to be reminded later.
         on_version_skipped(callback): Registers a callback for when the user skips the current version.
         check_for_update(skip_version=None): Checks GitHub for available updates and prompts the user if a new version is found.
-    
+
     Usage:
         Instantiate UpdateChecker with the required parameters, set needed callbacks, and call check_for_update().
     """
@@ -82,7 +82,7 @@ class UpdateChecker(QObject):
         self.remove_targets = remove_targets
         self.skip_version = skip_version
         self.plugin_dir = plugin_dir
-    
+
     def on_update_installed(self, callback: Callable[[], None]):
         """
         Registers a callback function to be invoked when an update is successfully installed.
@@ -91,7 +91,7 @@ class UpdateChecker(QObject):
             callback (Callable[[], None]): The function to be called when an update is successfully installed.
         """
         self.update_installed.connect(callback)
-    
+
     def on_update_remind(self, callback: Callable[[int], None]):
         """
         Registers a callback to be invoked when the user opts to be reminded later about an available update.
@@ -153,7 +153,7 @@ class UpdateChecker(QObject):
     def check_for_update(self, skip_version=None):
         """
         Checks GitHub for available updates and prompts the user if a new version is found.
-        
+
         Args:
             skip_version (str, optional): Version to skip during update checks. If none, the value passed to constructor will be used.
         """
