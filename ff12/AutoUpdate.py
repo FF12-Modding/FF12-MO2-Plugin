@@ -6,6 +6,7 @@ import tempfile
 import zipfile
 import os
 import socket
+import errno
 from typing import Callable
 
 from PyQt6.QtCore import (
@@ -402,6 +403,11 @@ class UpdateChecker(QObject):
                 elif os.path.isfile(src_path):
                     shutil.copy2(src_path, dest_path)
                     changes_done = True
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
         except Exception as e:
             if changes_done:
                 raise
