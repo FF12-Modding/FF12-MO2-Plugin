@@ -34,13 +34,42 @@ from .DateHelper import get_date_from_iso, get_date_time_from_iso
 from PyQt6.QtCore import QObject
 
 class UpdateChecker(QObject):
+    """
+    UpdateChecker is a QObject-based class that manages update checking, notification, and installation for a plugin or application using GitHub releases.
+    
+    Methods:
+        on_update_installed(callback): Registers a callback for when an update is installed.
+        on_update_remind(callback): Registers a callback for when the user opts to be reminded later.
+        on_version_skipped(callback): Registers a callback for when the user skips the current version.
+        check_for_update(skip_version=None): Checks GitHub for available updates and prompts the user if a new version is found.
+    
+    Usage:
+        Instantiate UpdateChecker with the required parameters, set needed callbacks, and call check_for_update().
+    """
     update_installed = pyqtSignal()
     update_remind = pyqtSignal(int)
     version_skipped = pyqtSignal(str)
-    def __init__(self, name, repo_owner, repo_name, major, minor, patch, release_type,
+    def __init__(self, name: str, repo_owner: str, repo_name: str, major: int, minor: int, patch: int, release_type: int,
                  parent: QMainWindow = None,
-                 update_targets=None, remove_targets=None, skip_version=None,
-                 plugin_dir=None):
+                 update_targets: list[str]=None, remove_targets: list[str]=None, skip_version: str=None,
+                 plugin_dir: str=None):
+        """
+        Initializes the AutoUpdate class with plugin and repository information.
+
+        Args:
+            name (str): The name of the plugin.
+            repo_owner (str): The owner of the repository.
+            repo_name (str): The name of the repository.
+            major (int): Major version number of the current plugin.
+            minor (int): Minor version number of the current plugin.
+            patch (int): Patch version number of the current plugin.
+            release_type (int): The type of release (e.g. mobase.ReleaseType.BETA).
+            parent (QMainWindow, optional): The parent window for UI integration. Defaults to None.
+            update_targets (optional): List of targets to update. Defaults to None.
+            remove_targets (optional): List of targets to remove. Defaults to None.
+            skip_version (optional): Version to skip during update checks. Defaults to None.
+            plugin_dir (optional): Directory where the plugin is located. Defaults to None.
+        """
         super().__init__()
         self.name = name
         self.repo_owner = repo_owner
@@ -121,6 +150,12 @@ class UpdateChecker(QObject):
         return v1 > v2
 
     def check_for_update(self, skip_version=None):
+        """
+        Checks GitHub for available updates and prompts the user if a new version is found.
+        
+        Args:
+            skip_version (str, optional): Version to skip during update checks. If none, the value passed to constructor will be used.
+        """
         # GitHub API has 60 requests per hour limit for unauthenticated requests.
         # So let's not make a big fuss about it and handle errors gracefully.
         try:
