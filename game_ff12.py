@@ -366,5 +366,11 @@ class FF12TZAGame(BasicGame):
                 VERSION_RELEASE_TYPE,
                 window
             )
+            # We're using non-modal dialogs, so we have to use callbacks to clear settings
+            def on_update_installed():
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, "v0.0.0")
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, 0)
+
+            update_checker.update_installed.connect(on_update_installed)
             update_checker.check_for_update()
     

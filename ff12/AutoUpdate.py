@@ -31,8 +31,12 @@ import sys
 from .SettingsManager import settings_manager, SettingName
 from .DateHelper import get_date_from_iso, get_date_time_from_iso
 
-class FF12UpdateChecker:
+from PyQt6.QtCore import QObject
+
+class FF12UpdateChecker(QObject):
+    update_installed = pyqtSignal()
     def __init__(self, repo_owner, repo_name, major, minor, patch, release_type, parent: QMainWindow = None):
+        super().__init__()
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.current_version = (major, minor, patch)
@@ -218,6 +222,7 @@ class FF12UpdateChecker:
                 return
             self._replace_plugin_files(new_script, ff12_update_dir)
             self._show_restart_dialog()
+            self.update_installed.emit()
         except Exception as e:
             self._show_error(f"Update failed: {e}")
         finally:
