@@ -1,8 +1,12 @@
 import mobase
+VERSION_MAJOR = 0
+VERSION_MINOR = 5
+VERSION_PATCH = 0
+VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 import shutil
+import os
 
 from collections.abc import Mapping
-from enum import StrEnum
 from pathlib import Path
 
 from PyQt6.QtCore import (
@@ -12,6 +16,8 @@ from PyQt6.QtCore import (
     QStandardPaths,
     qInfo,
 )
+
+from PyQt6.QtWidgets import QMainWindow
 
 from ..basic_features import (
     BasicLocalSavegames,
@@ -30,6 +36,9 @@ from ..basic_game import BasicGame
 
 from ..steam_utils import find_steam_path
 import vdf
+
+from .ff12.AutoUpdate import UpdateChecker
+from .ff12.SettingsManager import SettingsManager, settings_manager, SettingName
 
 class FF12ModDataChecker(BasicModDataChecker):
     def __init__(self, organizer: mobase.IOrganizer, plugin_name: str):
@@ -139,11 +148,6 @@ def getSaveMetadata(savepath: Path, save: mobase.ISaveGame) -> Mapping[str, str]
         "Created At": format_date(save.getBirthTime()),
         "Last Saved": format_date(save.getCreationTime())
     }
-
-class SettingName(StrEnum):
-    AUTO_STEAM_ID = "autoSteamId"
-    STEAM_ID_64 = "steamId64"
-
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
     Author = "ffgriever & Xeavin"
@@ -161,19 +165,26 @@ class FF12TZAGame(BasicGame):
 
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
+        SettingsManager(organizer, self.name())
         self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
         organizer.onPluginSettingChanged(self._on_plugin_setting_changed_callback)
+        organizer.onUserInterfaceInitialized(self._on_user_interface_initialized_callback)
 
-        auto_steam_id = self._get_setting(SettingName.AUTO_STEAM_ID)
+        auto_steam_id = settings_manager().get_setting(SettingName.AUTO_STEAM_ID)
         if auto_steam_id is True:
             self._set_last_logged_steam_id()
 
         return True
 
     def version(self):
-        return mobase.VersionInfo(0, 4, 0, mobase.ReleaseType.BETA)
+        return mobase.VersionInfo(
+            VERSION_MAJOR,
+            VERSION_MINOR,
+            VERSION_PATCH,
+            VERSION_RELEASE_TYPE
+        )
 
     def settings(self) -> list[mobase.PluginSetting]:
         return [
@@ -192,13 +203,28 @@ class FF12TZAGame(BasicGame):
                 ),
                 default_value = "",
             ),
+            mobase.PluginSetting(
+                SettingName.DISABLE_AUTO_UPDATES,
+                (
+                    "If true, disables automatic updates for the plugin."
+                ),
+                default_value = False,
+            ),
+            mobase.PluginSetting(
+                SettingName.SKIP_UPDATE_VERSION,
+                (
+                    "If set, skips update dialog for this version."
+                ),
+                default_value = "v0.0.0",
+            ),
+            mobase.PluginSetting(
+                SettingName.SKIP_UPDATE_UNTIL_DATE,
+                (
+                    "If set, skips update dialog until this date (in seconds since epoch)."
+                ),
+                default_value = 0,
+            ),
         ]
-
-    def _get_setting(self, key: str) -> mobase.MoVariant:
-        return self._organizer.pluginSetting(self.name(), key)
-
-    def _set_setting(self, key: str, value: mobase.MoVariant):
-        self._organizer.setPluginSetting(self.name(), key, value)
 
     def documentsDirectory(self) -> QDir:
         docs_path = QDir(
@@ -207,7 +233,7 @@ class FF12TZAGame(BasicGame):
             ).filePath("My Games/FINAL FANTASY XII THE ZODIAC AGE")
         )
 
-        steam_id = self._get_setting(SettingName.STEAM_ID_64)
+        steam_id = settings_manager().get_setting(SettingName.STEAM_ID_64)
         if steam_id:
             docs_path = QDir(docs_path.absoluteFilePath(steam_id))
 
@@ -277,10 +303,10 @@ class FF12TZAGame(BasicGame):
             finally:
                 self._suppress_setting_callback = False
         elif setting == SettingName.STEAM_ID_64 and old != new:
-            if self._get_setting(SettingName.AUTO_STEAM_ID) is True:
+            if settings_manager().get_setting(SettingName.AUTO_STEAM_ID) is True:
                 self._suppress_setting_callback = True
                 try:
-                    self._set_setting(SettingName.AUTO_STEAM_ID, False)
+                    settings_manager().set_setting(SettingName.AUTO_STEAM_ID, False)
                 finally:
                     self._suppress_setting_callback = False
 
@@ -309,12 +335,55 @@ class FF12TZAGame(BasicGame):
         if not last_steam_id:
             return
 
-        cur_steam_id = self._get_setting(SettingName.STEAM_ID_64)
+        cur_steam_id = settings_manager().get_setting(SettingName.STEAM_ID_64)
         if last_steam_id == cur_steam_id:
             return
 
-        self._set_setting(SettingName.STEAM_ID_64, last_steam_id)
+        settings_manager().set_setting(SettingName.STEAM_ID_64, last_steam_id)
         if cur_steam_id:
             qInfo(f"Updated Steam ID from '{cur_steam_id}' to '{last_steam_id}'.")
         else:
             qInfo(f"Set Steam ID to '{last_steam_id}'.")
+
+    def _on_user_interface_initialized_callback(
+            self,
+            window: QMainWindow
+    ):
+        current_game = self._organizer.managedGame()
+        if current_game is not self:
+            return
+
+        if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
+
+            remind_time = settings_manager().get_setting(SettingName.SKIP_UPDATE_UNTIL_DATE)
+            now_secs = int(QDateTime.currentDateTime().toSecsSinceEpoch())
+
+            if remind_time and now_secs is not None and remind_time > now_secs:
+                return
+
+            update_checker = UpdateChecker(
+                "FF12 Plugin",
+                "FF12-Modding", "FF12-MO2-Plugin",
+                VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+                VERSION_RELEASE_TYPE,
+                window,
+                update_targets=["game_ff12.py", "ff12"],
+                remove_targets=["ff12"],
+                skip_version=settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION),
+                plugin_dir=os.path.dirname(__file__),
+            )
+            # We're using non-modal dialogs, so we have to use callbacks to clear settings
+            def on_update_installed():
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, "v0.0.0")
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, 0)
+
+            def on_version_skipped(version: str):
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, version)
+
+            def on_update_remind(remind_time: int):
+                settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
+
+            update_checker.on_update_installed(on_update_installed)
+            update_checker.on_version_skipped(on_version_skipped)
+            update_checker.on_update_remind(on_update_remind)
+            update_checker.check_for_update()

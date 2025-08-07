@@ -39,7 +39,7 @@ jobs:
 
       - name: Zip release files
         run: |
-          zip ff12-mo2-plugin-${{ github.ref_name }}.zip game_ff12.py LICENSE README.md
+          zip -r ff12-mo2-plugin-${{ github.ref_name }}.zip game_ff12.py LICENSE README.md ff12
 
       - name: Generate changelog
         id: changelog
