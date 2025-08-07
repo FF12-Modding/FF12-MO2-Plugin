@@ -22,13 +22,11 @@ from ..basic_features import BasicLocalSavegames
 from ..basic_features.basic_save_game_info import BasicGameSaveGameInfo
 from ..basic_game import BasicGame
 
-from ..steam_utils import find_steam_path
-import vdf
-
 from .ff12.AutoUpdate import UpdateChecker
 from .ff12.ModDataChecker import FF12ModDataChecker
 from .ff12.SaveGame import FF12SaveGame, getSaveMetadata
 from .ff12.SettingsManager import SettingsManager, settings_manager, SettingName
+from .ff12.SteamHelper import get_last_logged_steam_id
 
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
@@ -192,28 +190,8 @@ class FF12TZAGame(BasicGame):
                 finally:
                     self._suppress_setting_callback = False
 
-    def _get_last_logged_steam_id(self) -> str | None:
-        steam_path = find_steam_path()
-        if not steam_path:
-            return None
-
-        loginusers_path = steam_path / "config" / "loginusers.vdf"
-        try:
-            with open(loginusers_path, "r", encoding = "utf-8") as f:
-                data = vdf.load(f)
-
-            users = data.get("users", {})
-            for steam_id, info in users.items():
-                if info.get("MostRecent") == "1":
-                    return steam_id
-
-            if users:
-                return next(iter(users))
-        except Exception:
-            return None
-
     def _set_last_logged_steam_id(self):
-        last_steam_id = self._get_last_logged_steam_id()
+        last_steam_id = get_last_logged_steam_id()
         if not last_steam_id:
             return
 
