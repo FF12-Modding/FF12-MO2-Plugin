@@ -1,7 +1,6 @@
 from datetime import datetime
 
-
-def get_date_time_from_iso(date_iso):
+def get_date_time_from_iso(date_iso: str) -> str:
     if date_iso:
         try:
             dt = datetime.fromisoformat(date_iso.replace("Z", "+00:00"))
@@ -10,7 +9,7 @@ def get_date_time_from_iso(date_iso):
             return date_iso
 
 
-def get_date_from_iso(date_iso):
+def get_date_from_iso(date_iso: str) -> str:
     if date_iso:
         try:
             dt = datetime.fromisoformat(date_iso.replace("Z", "+00:00"))
