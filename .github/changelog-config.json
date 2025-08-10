@@ -1,6 +1,6 @@
 {
   "template": "${{CHANGELOG}}\n",
-  "pr_template": "- ${{TITLE}} (#${{NUMBER}})\n  Commits: ${{COMMITS}}\n",
+  "pr_template": "- ${{TITLE}} (#${{NUMBER}})\n",
   "commit_template": "    - ${{COMMIT_MESSAGE}} [${{COMMIT_SHA}}](${{COMMIT_URL}})",
   "categories": [
     {
