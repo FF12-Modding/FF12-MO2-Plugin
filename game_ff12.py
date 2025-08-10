@@ -6,7 +6,6 @@ VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 import shutil
 import os
 
-from collections.abc import Mapping
 from pathlib import Path
 
 from PyQt6.QtCore import (
@@ -19,135 +18,16 @@ from PyQt6.QtCore import (
 
 from PyQt6.QtWidgets import QMainWindow
 
-from ..basic_features import (
-    BasicLocalSavegames,
-    BasicModDataChecker,
-    GlobPatterns,
-)
-from ..basic_features.utils import is_directory
-
-from ..basic_features.basic_save_game_info import (
-    BasicGameSaveGame,
-    BasicGameSaveGameInfo,
-    format_date,
-)
-
+from ..basic_features import BasicLocalSavegames
+from ..basic_features.basic_save_game_info import BasicGameSaveGameInfo
 from ..basic_game import BasicGame
 
-from ..steam_utils import find_steam_path
-import vdf
-
 from .ff12.AutoUpdate import UpdateChecker
+from .ff12.ModDataChecker import FF12ModDataChecker
+from .ff12.SaveGame import FF12SaveGame, getSaveMetadata
 from .ff12.SettingsManager import SettingsManager, settings_manager, SettingName
+from .ff12.SteamHelper import get_last_logged_steam_id
 
-class FF12ModDataChecker(BasicModDataChecker):
-    def __init__(self, organizer: mobase.IOrganizer, plugin_name: str):
-        self._organizer = organizer
-        self._plugin_name = plugin_name
-
-        super().__init__(
-            GlobPatterns(
-                unfold=['*'],
-                delete=["*"],
-                valid=["x64", "mods", "dxgi.dll", "dinput8.dll", "launcher.dll"],
-                move={"scripts":        "x64/",
-                      "modules":        "x64/",
-                      "gamedata":       "mods/deploy/ff12data/",
-                      "jsondata":       "mods/deploy/ff12data/",
-                      "prefetchdata":   "mods/deploy/ff12data/",
-                      "ps2data":        "mods/deploy/ff12data/",
-                      "ff12data":       "mods/deploy/",
-                      },
-            )
-        )
-
-    def dataLooksValid(
-        self, filetree: mobase.IFileTree
-    ) -> mobase.ModDataChecker.CheckReturn:
-        status = mobase.ModDataChecker.VALID
-
-        rp = self._regex_patterns
-        for entry in filetree:
-            name = entry.name().casefold()
-
-            if rp.valid.match(name):
-                if status is mobase.ModDataChecker.INVALID:
-                    status = mobase.ModDataChecker.VALID
-
-            elif rp.move_match(name) is not None:
-                status = mobase.ModDataChecker.FIXABLE
-
-            elif rp.unfold.match(name) and is_directory(entry):
-                status = mobase.ModDataChecker.FIXABLE
-                new_status = self.dataLooksValid(entry)
-                if new_status is not mobase.ModDataChecker.VALID:
-                    status = new_status
-
-            elif rp.delete.match(name) is not None:
-                status = mobase.ModDataChecker.FIXABLE
-
-            else:
-                status = mobase.ModDataChecker.INVALID
-                break
-        return status
-
-    def fix(self, filetree: mobase.IFileTree) -> mobase.IFileTree:
-        rp = self._regex_patterns
-
-        for entry in list(filetree):
-            name = entry.name().casefold()
-
-            if rp.valid.match(name):
-                continue
-
-            elif (move_key := rp.move_match(name)) is not None:
-                target = self._file_patterns.move[move_key]
-                filetree.move(entry, target)
-
-            elif rp.unfold.match(name) and is_directory(entry):
-                filetree.merge(entry)
-                entry.detach()
-                self.fix(filetree)
-
-            elif rp.delete.match(name):
-                entry.detach()
-
-        return filetree
-
-class FF12SaveGame(BasicGameSaveGame):
-    def __init__(self, filepath: Path):
-        super().__init__(filepath)
-        f_stat = self._filepath.stat()
-        self._size = f_stat.st_size
-        self._created = f_stat.st_birthtime
-        self._modified = f_stat.st_mtime
-
-    def getName(self) -> str:
-        return f"Slot {self.getSlot()}"
-
-    def getSaveGroupIdentifier(self) -> str:
-        return "Default"
-
-    def getSlot(self) -> str:
-        return int(self._filepath.stem[6:9])
-
-    def getSize(self) -> int:
-        return self._size
-
-    def getBirthTime(self) -> QDateTime:
-        return QDateTime.fromSecsSinceEpoch(int(self._created))
-
-    def getCreationTime(self) -> QDateTime:
-        return QDateTime.fromSecsSinceEpoch(int(self._modified))
-
-def getSaveMetadata(savepath: Path, save: mobase.ISaveGame) -> Mapping[str, str]:
-    assert isinstance(save, FF12SaveGame)
-    return {
-        "Slot": save.getSlot(),
-        "Size": f"{save.getSize() / 1024:.2f} KB",
-        "Created At": format_date(save.getBirthTime()),
-        "Last Saved": format_date(save.getCreationTime())
-    }
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
     Author = "ffgriever & Xeavin"
@@ -166,7 +46,7 @@ class FF12TZAGame(BasicGame):
     def init(self, organizer: mobase.IOrganizer) -> bool:
         super().init(organizer)
         SettingsManager(organizer, self.name())
-        self._register_feature(FF12ModDataChecker(self._organizer, self.name()))
+        self._register_feature(FF12ModDataChecker())
         self._register_feature(BasicLocalSavegames(self.savesDirectory()))
         self._register_feature(BasicGameSaveGameInfo(get_metadata = getSaveMetadata))
         organizer.onPluginSettingChanged(self._on_plugin_setting_changed_callback)
@@ -310,28 +190,8 @@ class FF12TZAGame(BasicGame):
                 finally:
                     self._suppress_setting_callback = False
 
-    def _get_last_logged_steam_id(self) -> str | None:
-        steam_path = find_steam_path()
-        if not steam_path:
-            return None
-
-        loginusers_path = steam_path / "config" / "loginusers.vdf"
-        try:
-            with open(loginusers_path, "r", encoding = "utf-8") as f:
-                data = vdf.load(f)
-
-            users = data.get("users", {})
-            for steam_id, info in users.items():
-                if info.get("MostRecent") == "1":
-                    return steam_id
-
-            if users:
-                return next(iter(users))
-        except Exception:
-            return None
-
     def _set_last_logged_steam_id(self):
-        last_steam_id = self._get_last_logged_steam_id()
+        last_steam_id = get_last_logged_steam_id()
         if not last_steam_id:
             return
 
