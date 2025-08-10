@@ -1,7 +1,7 @@
 import mobase
 VERSION_MAJOR = 0
 VERSION_MINOR = 5
-VERSION_PATCH = 1
+VERSION_PATCH = 2
 VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 import shutil
 import os
