@@ -205,45 +205,46 @@ class FF12TZAGame(BasicGame):
         else:
             qInfo(f"Set Steam ID to '{last_steam_id}'.")
 
-    def _on_user_interface_initialized_callback(
-            self,
-            window: QMainWindow
-    ):
-        current_game = self._organizer.managedGame()
-        if current_game is not self:
+    def _on_user_interface_initialized_callback(self, window: QMainWindow):
+        if self._organizer.managedGame() is not self:
             return
 
-        if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is not True:
+        self._check_for_update(window)
 
-            remind_time = settings_manager().get_setting(SettingName.SKIP_UPDATE_UNTIL_DATE)
-            now_secs = int(QDateTime.currentDateTime().toSecsSinceEpoch())
+    def _check_for_update(self, window: QMainWindow):
+        if settings_manager().get_setting(SettingName.DISABLE_AUTO_UPDATES) is True:
+            return
 
-            if remind_time and now_secs is not None and remind_time > now_secs:
-                return
+        remind_time = settings_manager().get_setting(SettingName.SKIP_UPDATE_UNTIL_DATE)
+        now_secs = int(QDateTime.currentDateTime().toSecsSinceEpoch())
 
-            update_checker = UpdateChecker(
-                "FF12 Plugin",
-                "FF12-Modding", "FF12-MO2-Plugin",
-                VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
-                VERSION_RELEASE_TYPE,
-                window,
-                update_targets=["game_ff12.py", "ff12"],
-                remove_targets=["ff12"],
-                skip_version=settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION),
-                plugin_dir=os.path.dirname(__file__),
-            )
-            # We're using non-modal dialogs, so we have to use callbacks to clear settings
-            def on_update_installed():
-                settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, "v0.0.0")
-                settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, 0)
+        if remind_time and now_secs is not None and remind_time > now_secs:
+            return
 
-            def on_version_skipped(version: str):
-                settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, version)
+        update_checker = UpdateChecker(
+            "FF12 Plugin",
+            "FF12-Modding", "FF12-MO2-Plugin",
+            VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+            VERSION_RELEASE_TYPE,
+            window,
+            update_targets=["game_ff12.py", "ff12"],
+            remove_targets=["ff12"],
+            skip_version=settings_manager().get_setting(SettingName.SKIP_UPDATE_VERSION),
+            plugin_dir=os.path.dirname(__file__),
+        )
 
-            def on_update_remind(remind_time: int):
-                settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
+        # We're using non-modal dialogs, so we have to use callbacks to clear settings.
+        def on_update_installed():
+            settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, "v0.0.0")
+            settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, 0)
 
-            update_checker.on_update_installed(on_update_installed)
-            update_checker.on_version_skipped(on_version_skipped)
-            update_checker.on_update_remind(on_update_remind)
-            update_checker.check_for_update()
+        def on_version_skipped(version: str):
+            settings_manager().set_setting(SettingName.SKIP_UPDATE_VERSION, version)
+
+        def on_update_remind(remind_time: int):
+            settings_manager().set_setting(SettingName.SKIP_UPDATE_UNTIL_DATE, remind_time)
+
+        update_checker.on_update_installed(on_update_installed)
+        update_checker.on_version_skipped(on_version_skipped)
+        update_checker.on_update_remind(on_update_remind)
+        update_checker.check_for_update()
