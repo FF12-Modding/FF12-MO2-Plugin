@@ -89,9 +89,7 @@ class ArchiveView(QTreeView):
                     output_file = export_path / Path(relative_path)
                     output_file.parent.mkdir(parents = True, exist_ok = True)
 
-                    data = reader.unpack_file(relative_path)
-                    with open(output_file, 'wb') as file:
-                        file.write(data)
+                    reader.unpack_file(relative_path, output_file)
 
                     exported_count += 1
                 except Exception as e:
