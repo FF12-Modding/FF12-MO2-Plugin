@@ -133,7 +133,7 @@ class ArchiveReader:
 
         return list(struct.unpack(f"<{count}H", data))
 
-    def unpack_file(self, file_path: str) -> bytearray:
+    def unpack_file(self, file_path: str, out_path: str):
         """Unpack a file from the archive"""
         if self._file_handle is None:
             raise ValueError("Archive file handle is not open")
@@ -142,34 +142,28 @@ class ArchiveReader:
         if entry is None:
             raise FileNotFoundError(f"File '{file_path}' not found in archive entries")
 
-        data = bytearray(entry.original_size)
         self._file_handle.seek(entry.data_offset, io.SEEK_SET)
-        buffer_pos = 0
         block_count = 0
 
-        for block_size in entry.block_sizes:
-            if block_size == 0:
-                block_size = self._MAX_BLOCK_SIZE
+        with open(out_path, "wb") as out_file:
+            for block_size in entry.block_sizes:
+                if block_size == 0:
+                    block_size = self._MAX_BLOCK_SIZE
 
-            block_data = self._file_handle.read(block_size)
-            if len(block_data) < block_size:
-                raise EOFError("Unexpected EOF reading data block")
+                block_data = self._file_handle.read(block_size)
+                if len(block_data) < block_size:
+                    raise EOFError("Unexpected EOF reading data block")
 
-            is_last_block = (block_count == len(entry.block_sizes) - 1)
-            remaining_size = entry.original_size % self._MAX_BLOCK_SIZE
+                is_last_block = (block_count == len(entry.block_sizes) - 1)
+                remaining_size = entry.original_size % self._MAX_BLOCK_SIZE
 
-            if (block_size == self._MAX_BLOCK_SIZE or (is_last_block and block_size == remaining_size)):
-                data[buffer_pos:buffer_pos + block_size] = block_data
-                buffer_pos += block_size
-            else:
-                decompressed_data = zlib.decompress(block_data)
-                decompressed_size = len(decompressed_data)
-                data[buffer_pos:buffer_pos + decompressed_size] = decompressed_data
-                buffer_pos += decompressed_size
+                if (block_size == self._MAX_BLOCK_SIZE or (is_last_block and block_size == remaining_size)):
+                    out_file.write(block_data)
+                else:
+                    decompressed_data = zlib.decompress(block_data)
+                    out_file.write(decompressed_data)
 
-            block_count += 1
-
-        return data
+                block_count += 1
 
     @staticmethod
     def _read_null_string_lower(data: bytes, offset: int) -> str:
