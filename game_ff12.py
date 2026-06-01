@@ -22,9 +22,9 @@ from .ff12.SaveGame import FF12SaveGame, getSaveMetadata
 from .ff12.SettingsManager import SettingName, SettingsManager, settings_manager
 from .ff12.SteamHelper import get_last_logged_steam_id
 
-VERSION_MAJOR = 0
-VERSION_MINOR = 5
-VERSION_PATCH = 2
+VERSION_MAJOR = 1
+VERSION_MINOR = 0
+VERSION_PATCH = 0
 VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 
 class FF12TZAGame(BasicGame):
