@@ -154,7 +154,7 @@ class FF12TZAGame(BasicGame):
                 mobase.ExecutableInfo(
                     "Reload VFS",
                     QFileInfo(cmd_path)
-                ).withArgument(f'/c'),
+                ).withArgument('/c'),
             ]
 
     def iniFiles(self):
