@@ -2,9 +2,17 @@ from pathlib import Path
 
 from PyQt6.QtCore import QCoreApplication, QModelIndex, QStandardPaths, Qt
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QFileDialog, QMenu, QMessageBox, QProgressDialog, QTreeView, QWidget
+from PyQt6.QtWidgets import (
+    QFileDialog,
+    QMenu,
+    QMessageBox,
+    QProgressDialog,
+    QTreeView,
+    QWidget,
+)
 
 from .Model import ArchiveColumn, TreeNode
+
 
 class ArchiveView(QTreeView):
     def __init__(self, parent: QWidget | None):

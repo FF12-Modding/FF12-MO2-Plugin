@@ -1,12 +1,20 @@
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from .Loader import ArchiveLoader
 from .Model import ArchiveModel
 from .Reader import ArchiveReader, get_archives
 from .View import ArchiveView
+
 
 class ArchiveContainerWidget(QWidget):
     def __init__(self, content_path: Path, parent: QWidget | None = None):

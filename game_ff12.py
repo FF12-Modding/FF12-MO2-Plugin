@@ -1,9 +1,8 @@
-import mobase
-import shutil
 import os
-
+import shutil
 from pathlib import Path
 
+import mobase
 from PyQt6.QtCore import (
     QDateTime,
     QDir,
@@ -11,19 +10,17 @@ from PyQt6.QtCore import (
     QStandardPaths,
     qInfo,
 )
-
 from PyQt6.QtWidgets import QMainWindow, QTabWidget
 
 from ..basic_features import BasicLocalSavegames
 from ..basic_features.basic_save_game_info import BasicGameSaveGameInfo
 from ..basic_game import BasicGame
-
+from .ff12.Archive.Widget import ArchiveContainerWidget
 from .ff12.AutoUpdate import UpdateChecker
 from .ff12.ModDataChecker import FF12ModDataChecker
 from .ff12.SaveGame import FF12SaveGame, getSaveMetadata
-from .ff12.SettingsManager import SettingsManager, settings_manager, SettingName
+from .ff12.SettingsManager import SettingName, SettingsManager, settings_manager
 from .ff12.SteamHelper import get_last_logged_steam_id
-from .ff12.Archive.Widget import ArchiveContainerWidget
 
 VERSION_MAJOR = 0
 VERSION_MINOR = 5

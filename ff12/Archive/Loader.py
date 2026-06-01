@@ -1,7 +1,9 @@
 from pathlib import Path
+
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from .Reader import ArchiveReader
+
 
 class ArchiveLoader(QThread):
     """Background thread for loading archive."""

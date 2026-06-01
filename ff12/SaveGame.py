@@ -1,13 +1,14 @@
-import mobase
-
-from pathlib import Path
 from collections.abc import Mapping
+from pathlib import Path
+
+import mobase
 from PyQt6.QtCore import QDateTime
 
 from ...basic_features.basic_save_game_info import (
     BasicGameSaveGame,
     format_date,
 )
+
 
 class FF12SaveGame(BasicGameSaveGame):
     def __init__(self, filepath: Path):

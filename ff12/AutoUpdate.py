@@ -1,35 +1,36 @@
-import mobase
-import shutil
-import urllib.request
-import json
-import tempfile
-import zipfile
-import os
-import socket
 import errno
+import json
+import os
+import re
+import shutil
+import socket
+import sys
+import tempfile
+import urllib.request
+import zipfile
 from typing import Callable
 
+import mobase
 from PyQt6.QtCore import (
     QDateTime,
+    QObject,
+    pyqtSignal,
     qInfo,
     qWarning,
-    pyqtSignal,
-    QObject,
 )
 from PyQt6.QtWidgets import (
-    QMessageBox,
     QApplication,
     QDialog,
-    QVBoxLayout,
-    QLabel,
-    QTextBrowser,
     QDialogButtonBox,
+    QLabel,
     QMainWindow,
+    QMessageBox,
+    QTextBrowser,
+    QVBoxLayout,
 )
-import sys
-import re
 
 from .DateHelper import get_date_from_iso, get_date_time_from_iso
+
 
 class UpdateChecker(QObject):
     """

@@ -1,8 +1,10 @@
 from enum import IntEnum, auto
+
 from PyQt6.QtCore import QAbstractItemModel, QFileInfo, QModelIndex, Qt
 from PyQt6.QtWidgets import QFileIconProvider
 
 from .Reader import ArchiveReader
+
 
 class TreeNode:
     def __init__(self, name: str, parent = None, is_dir = False, size = 0, entry = None):
