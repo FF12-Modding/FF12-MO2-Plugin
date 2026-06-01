@@ -1,5 +1,7 @@
-from ...steam_utils import find_steam_path
 import vdf
+
+from ...steam_utils import find_steam_path
+
 
 def get_last_logged_steam_id() -> str | None:
     """

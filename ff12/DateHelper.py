@@ -1,5 +1,6 @@
 from datetime import datetime
 
+
 def get_date_time_from_iso(date_iso: str) -> str:
     """
     Convert ISO 8601 string to 'YYYY-MM-DD HH:MM UTC'.

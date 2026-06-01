@@ -1,10 +1,10 @@
 from enum import IntEnum, auto
-from pathlib import Path
 
 from PyQt6.QtCore import QAbstractItemModel, QFileInfo, QModelIndex, Qt
 from PyQt6.QtWidgets import QFileIconProvider
 
 from .Reader import ArchiveReader
+
 
 class TreeNode:
     def __init__(self, name: str, parent = None, is_dir = False, size = 0, entry = None):
@@ -107,7 +107,7 @@ class ArchiveModel(QAbstractItemModel):
                     current_node = dir_nodes[current_path]
 
             filename = path_parts[-1]
-            file_node = TreeNode(filename, current_node, False, entry.original_size, entry)
+            TreeNode(filename, current_node, False, entry.original_size, entry)
 
     def _sort_tree(self):
         """Sort the entire tree."""

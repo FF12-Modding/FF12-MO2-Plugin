@@ -4,8 +4,8 @@ from ...basic_features import (
     BasicModDataChecker,
     GlobPatterns,
 )
-
 from ...basic_features.utils import is_directory
+
 
 class FF12ModDataChecker(BasicModDataChecker):
     def __init__(self):

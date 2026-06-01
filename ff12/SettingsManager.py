@@ -1,5 +1,7 @@
-import mobase
 from enum import StrEnum
+
+import mobase
+
 
 class SettingName(StrEnum):
     AUTO_STEAM_ID = "autoSteamId"

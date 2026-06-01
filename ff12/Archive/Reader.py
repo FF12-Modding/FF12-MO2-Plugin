@@ -1,11 +1,11 @@
 import io
 import struct
 import zlib
-
 from pathlib import Path
-from typing import List, Dict, BinaryIO
+from typing import BinaryIO, Dict, List
 
 from PyQt6.QtCore import qWarning
+
 
 class ArchiveEntry:
     def __init__(self, original_size: int, data_offset: int, block_sizes: List[int]):
