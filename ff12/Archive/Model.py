@@ -105,7 +105,7 @@ class ArchiveModel(QAbstractItemModel):
                     current_node = dir_nodes[current_path]
 
             filename = path_parts[-1]
-            file_node = TreeNode(filename, current_node, False, entry.original_size, entry)
+            TreeNode(filename, current_node, False, entry.original_size, entry)
 
     def _sort_tree(self):
         """Sort the entire tree."""

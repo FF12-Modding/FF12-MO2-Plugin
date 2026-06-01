@@ -275,7 +275,7 @@ class UpdateChecker(QObject):
         current_version = f"v{self.current_version[0]}.{self.current_version[1]}.{self.current_version[2]}"
         latest_tag = latest_release.get('tag_name', '')
         latest_date_str = get_date_time_from_iso(latest_release.get('published_at', ''))
-        app = QApplication.instance() or QApplication(sys.argv)
+        _app = QApplication.instance() or QApplication(sys.argv)
         UpdateDialog = self._create_update_dialog(notes_md, current_version, latest_tag, latest_date_str)
         dialog = UpdateDialog(parent=self.parentWindow)
         dialog.activateWindow()
@@ -427,7 +427,7 @@ class UpdateChecker(QObject):
         except OSError as e:
             if e.errno != errno.ENOENT:
                 raise
-        except Exception as e:
+        except Exception:
             if changes_done:
                 raise
             else:
@@ -435,9 +435,9 @@ class UpdateChecker(QObject):
         return True
 
     def _show_error(self, msg):
-        app = QApplication.instance() or QApplication(sys.argv)
+        _app = QApplication.instance() or QApplication(sys.argv)
         QMessageBox.critical(None, f"{self.name} Update", msg)
 
     def _show_restart_dialog(self):
-        app = QApplication.instance() or QApplication(sys.argv)
+        _app = QApplication.instance() or QApplication(sys.argv)
         QMessageBox.information(None, f"{self.name} Update", "Update complete! Please restart Mod Organizer 2 for changes to take effect.")
