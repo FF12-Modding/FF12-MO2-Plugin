@@ -10,6 +10,8 @@ This plugin requires the [FF12 External File Loader](https://www.nexusmods.com/f
 - Automatic launcher handling
 - Automatic update checking on each start
 - Support for saves and ini files
+- Save game browsing and basic management
+- Archive browsing and file export (.vbf)
 
 ## Installation
 1. Make sure Mod Organizer 2 (MO2) is closed.
