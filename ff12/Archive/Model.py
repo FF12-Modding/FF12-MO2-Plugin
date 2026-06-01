@@ -1,6 +1,4 @@
 from enum import IntEnum, auto
-from pathlib import Path
-
 from PyQt6.QtCore import QAbstractItemModel, QFileInfo, QModelIndex, Qt
 from PyQt6.QtWidgets import QFileIconProvider
 
