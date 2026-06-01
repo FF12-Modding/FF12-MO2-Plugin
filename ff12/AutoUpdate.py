@@ -13,6 +13,8 @@ from PyQt6.QtCore import (
     QDateTime,
     qInfo,
     qWarning,
+    pyqtSignal,
+    QObject,
 )
 from PyQt6.QtWidgets import (
     QMessageBox,
@@ -24,16 +26,10 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QMainWindow,
 )
-from PyQt6.QtCore import (
-    QDateTime,
-    pyqtSignal,
-)
 import sys
 import re
 
 from .DateHelper import get_date_from_iso, get_date_time_from_iso
-
-from PyQt6.QtCore import QObject
 
 class UpdateChecker(QObject):
     """
