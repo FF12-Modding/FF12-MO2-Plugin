@@ -1,8 +1,4 @@
 import mobase
-VERSION_MAJOR = 0
-VERSION_MINOR = 5
-VERSION_PATCH = 2
-VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 import shutil
 import os
 
@@ -28,6 +24,11 @@ from .ff12.SaveGame import FF12SaveGame, getSaveMetadata
 from .ff12.SettingsManager import SettingsManager, settings_manager, SettingName
 from .ff12.SteamHelper import get_last_logged_steam_id
 from .ff12.Archive.Widget import ArchiveContainerWidget
+
+VERSION_MAJOR = 0
+VERSION_MINOR = 5
+VERSION_PATCH = 2
+VERSION_RELEASE_TYPE = mobase.ReleaseType.BETA
 
 class FF12TZAGame(BasicGame):
     Name = "Final Fantasy XII TZA Support Plugin"
